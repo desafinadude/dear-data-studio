@@ -165,34 +165,53 @@ export function renderInstance(stamp, dataMap, row, data) {
 
 // ── Output SVG builder ─────────────────────────────────────────────────────────
 
-const CELL_W = 110, COLS = 5, COL_GAP = 16, ROW_GAP = 18, PAD = 28, SEC_GAP = 32
-
 function isSlotActive(slot, dataMap) {
   if (slot.type === "size-range")     return !!(dataMap[slot.id]?.["size-range"]?.col)
   if (slot.type === "repeat-indexed") return !!(dataMap[slot.id]?.["count"]?.col)
   return slot.encs.some(enc => (dataMap[slot.id] || {})[enc.type]?.col)
 }
 
-export function buildOutputSVG(stamps, dataMap, data) {
+export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}) {
   if (!data?.length) return null
   const active = stamps.filter(s => s.slots.some(sl => isSlotActive(sl, dataMap)))
   if (!active.length) return null
-  const rows = []; let y = PAD
+  
+  // Layout configuration with defaults
+  const layout = {
+    type: layoutConfig.type || "grid",      // "grid" or "flow"
+    scale: layoutConfig.scale || 1.0,       // Global scale factor
+    cols: layoutConfig.cols || 5,           // Columns for grid/flow
+    cellW: layoutConfig.cellW || 110,       // Base cell width
+    colGap: layoutConfig.colGap || 16,      // Horizontal gap
+    rowGap: layoutConfig.rowGap || 18,      // Vertical gap
+    pad: layoutConfig.pad || 28,            // Padding
+    secGap: layoutConfig.secGap || 32       // Section gap
+  }
+  
+  const rows = []; let y = layout.pad
+  const scaledCellW = layout.cellW * layout.scale
+  
   for (const stamp of active) {
-    const cellH = Math.round(CELL_W * (stamp.vbH / stamp.vbW))
-    rows.push(`<text x="${PAD}" y="${y}" font-family="Georgia,serif" font-size="11" fill="#9b8b7a" letter-spacing="2">${escXML(stamp.name.toUpperCase())}</text>`)
-    rows.push(`<line x1="${PAD}" y1="${y + 3}" x2="${PAD + COLS * (CELL_W + COL_GAP) - COL_GAP}" y2="${y + 3}" stroke="#e8e5e0" stroke-width="1"/>`)
+    const cellH = Math.round(scaledCellW * (stamp.vbH / stamp.vbW))
+    
+    rows.push(`<text x="${layout.pad}" y="${y}" font-family="Georgia,serif" font-size="11" fill="#9b8b7a" letter-spacing="2">${escXML(stamp.name.toUpperCase())}</text>`)
+    rows.push(`<line x1="${layout.pad}" y1="${y + 3}" x2="${layout.pad + layout.cols * (scaledCellW + layout.colGap) - layout.colGap}" y2="${y + 3}" stroke="#e8e5e0" stroke-width="1"/>`)
     y += 16
+    
     data.forEach((row, ri) => {
-      const col = ri % COLS, rn = Math.floor(ri / COLS)
-      const cx = PAD + col * (CELL_W + COL_GAP), cy = y + rn * (cellH + ROW_GAP)
-      const sc = (CELL_W / stamp.vbW).toFixed(4)
+      const col = ri % layout.cols
+      const rn = Math.floor(ri / layout.cols)
+      const cx = layout.pad + col * (scaledCellW + layout.colGap)
+      const cy = y + rn * (cellH + layout.rowGap)
+      const sc = (scaledCellW / stamp.vbW).toFixed(4)
       rows.push(`<g transform="translate(${cx},${cy}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
     })
-    y += Math.ceil(data.length / COLS) * (cellH + ROW_GAP) + SEC_GAP
+    
+    y += Math.ceil(data.length / layout.cols) * (cellH + layout.rowGap) + layout.secGap
   }
-  rows.push(`<line x1="${PAD}" y1="${y}" x2="${PAD + COLS * (CELL_W + COL_GAP) - COL_GAP}" y2="${y}" stroke="#e8e5e0" stroke-width="1"/>`)
-  y += 10; let lx = PAD
+  
+  rows.push(`<line x1="${layout.pad}" y1="${y}" x2="${layout.pad + layout.cols * (scaledCellW + layout.colGap) - layout.colGap}" y2="${y}" stroke="#e8e5e0" stroke-width="1"/>`)
+  y += 10; let lx = layout.pad
   for (const stamp of active) {
     const sc = (28 / stamp.vbW).toFixed(4)
     rows.push(`<g transform="translate(${lx},${y}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${stamp.baseXML}</g>`)
@@ -200,7 +219,7 @@ export function buildOutputSVG(stamps, dataMap, data) {
     lx += 170
   }
   y += 36
-  const W = PAD * 2 + COLS * (CELL_W + COL_GAP) - COL_GAP
+  const W = layout.pad * 2 + layout.cols * (scaledCellW + layout.colGap) - layout.colGap
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${y}" width="${W}" height="${y}"><title>Dear Data Portrait</title><rect width="${W}" height="${y}" fill="#ffffff"/>\n${rows.join("\n")}\n</svg>`
 }
 

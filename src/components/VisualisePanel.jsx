@@ -7,6 +7,14 @@ import SlotAssign from "./SlotAssign.jsx"
 export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns }) {
   const [error, setError] = useState(null)
   const [drag, setDrag] = useState(false)
+  const [layoutConfig, setLayoutConfig] = useState({
+    type: "grid",
+    scale: 1.0,
+    cols: 5,
+    cellW: 110,
+    colGap: 16,
+    rowGap: 18
+  })
   const fileRef = useRef()
   
   const setDM = (slotId, encType, field, val) =>
@@ -15,7 +23,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
   const setSlotProp = (stampId, slotId, field, val) =>
     setStamps(p => p.map(s => s.id !== stampId ? s : { ...s, slots: s.slots.map(sl => sl.id !== slotId ? sl : { ...sl, [field]: val }) }))
 
-  const svgOut = useMemo(() => buildOutputSVG(stamps, dataMap, csv), [stamps, dataMap, csv])
+  const svgOut = useMemo(() => buildOutputSVG(stamps, dataMap, csv, layoutConfig), [stamps, dataMap, csv, layoutConfig])
 
   const loadStamp = text => {
     setError(null)
@@ -104,8 +112,36 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#e8e6e2" }}>
-        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${T.border}`, background: T.p1, display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${T.border}`, background: T.p1, display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
           <span style={{ fontSize: 13, color: T.muted }}>live preview</span>
+          
+          {/* Layout controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: T.mid }}>scale</span>
+            <input 
+              type="range" 
+              min="0.3" 
+              max="2" 
+              step="0.1" 
+              value={layoutConfig.scale} 
+              onChange={e => setLayoutConfig(p => ({ ...p, scale: parseFloat(e.target.value) }))}
+              style={{ width: 80, accentColor: T.accent }}
+            />
+            <span style={{ fontSize: 11, color: T.muted, minWidth: 35 }}>{layoutConfig.scale.toFixed(1)}x</span>
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: T.mid }}>cols</span>
+            <input 
+              type="number" 
+              min="1" 
+              max="20" 
+              value={layoutConfig.cols} 
+              onChange={e => setLayoutConfig(p => ({ ...p, cols: parseInt(e.target.value) || 5 }))}
+              style={{ ...inp, width: 50, fontSize: 11, padding: "2px 6px" }}
+            />
+          </div>
+          
           {svgOut && (
             <button onClick={() => downloadSVG(svgOut)} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 4, border: `1px solid ${T.navy}`, background: "transparent", color: T.navy, fontSize: 12, cursor: "pointer", fontFamily: "'Courier Prime',monospace" }}>
               ↓ download SVG
