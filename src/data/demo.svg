@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <rect x="5" y="5" width="110" height="110" rx="4" fill="none" stroke="#d4c5a9" stroke-width="1"/>
+  
+  <!-- Size range with color encoding: dd-{id}-color group -->
+  <g id="dd-focus_mood-color">
+    <circle id="dd-focus_mood-size-min" cx="60" cy="44" r="8"  fill="#c1440e"/>
+    <circle id="dd-focus_mood-size-max" cx="60" cy="44" r="28" fill="#c1440e" opacity="0.01"/>
+  </g>
+  
+  <!-- Simple color encoding -->
+  <circle id="dd-energy-color" cx="60" cy="44" r="4" fill="#ffffff"/>
+  
+  <!-- Rotation encoding example -->
+  <rect id="dd-activity-rotation" x="56" y="14" width="8" height="16" fill="#2d6a4f"/>
+  
+  <!-- Indexed repeats with item-level encodings -->
+  <g id="dd-coffee-repeat">
+    <circle id="dd-coffee-repeat-1-color" cx="15" cy="102" r="6" fill="#1d3557"/>
+    <circle id="dd-coffee-repeat-2-color" cx="28" cy="102" r="6" fill="#1d3557"/>
+    <circle id="dd-coffee-repeat-3-opacity" cx="41" cy="102" r="6" fill="#1d3557"/>
+    <circle id="dd-coffee-repeat-4-rotation" cx="54" cy="102" r="6" fill="#1d3557"/>
+    <circle id="dd-coffee-repeat-5" cx="67" cy="102" r="6" fill="#1d3557"/>
+    <circle id="dd-coffee-repeat-6" cx="80" cy="102" r="6" fill="#1d3557"/>
+  </g>
+</svg>

@@ -1,0 +1,36 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="120" height="120" fill="#F5F5F5"/>
+<g id="distractions">
+<rect width="120" height="120" fill="white"/>
+<g id="dd-L-size-color">
+<g id="dd-L-size-max">
+<mask id="path-1-inside-1_0_1" fill="white">
+<path d="M60 108C52.3087 108 44.9325 102.943 39.4939 93.9411C34.0554 84.9394 31 72.7304 31 60C31 47.2696 34.0553 35.0606 39.4939 26.0589C44.9324 17.0571 52.3087 12 60 12L60 60L60 108Z"/>
+</mask>
+<path d="M60 108C52.3087 108 44.9325 102.943 39.4939 93.9411C34.0554 84.9394 31 72.7304 31 60C31 47.2696 34.0553 35.0606 39.4939 26.0589C44.9324 17.0571 52.3087 12 60 12L60 60L60 108Z" fill="#D9D9D9" stroke="black" mask="url(#path-1-inside-1_0_1)"/>
+</g>
+<g id="dd-L-size-min">
+<mask id="path-2-inside-2_0_1" fill="white">
+<path d="M59.5 80C56.45 80 53.5249 77.9455 51.3683 74.2886C49.2116 70.6316 48 65.6717 48 60.5C48 55.3283 49.2116 50.3684 51.3683 46.7114C53.5249 43.0545 56.45 41 59.5 41L59.5 60.5L59.5 80Z"/>
+</mask>
+<path d="M59.5 80C56.45 80 53.5249 77.9455 51.3683 74.2886C49.2116 70.6316 48 65.6717 48 60.5C48 55.3283 49.2116 50.3684 51.3683 46.7114C53.5249 43.0545 56.45 41 59.5 41L59.5 60.5L59.5 80Z" fill="#215E73" stroke="black" mask="url(#path-2-inside-2_0_1)"/>
+</g>
+</g>
+<g id="dd-R-size-color">
+<g id="dd-R-size-max">
+<mask id="path-3-inside-3_0_1" fill="white">
+<path d="M60 108C67.6913 108 75.0675 102.943 80.5061 93.9411C85.9446 84.9394 89 72.7304 89 60C89 47.2696 85.9447 35.0606 80.5061 26.0589C75.0676 17.0571 67.6913 12 60 12L60 60L60 108Z"/>
+</mask>
+<path d="M60 108C67.6913 108 75.0675 102.943 80.5061 93.9411C85.9446 84.9394 89 72.7304 89 60C89 47.2696 85.9447 35.0606 80.5061 26.0589C75.0676 17.0571 67.6913 12 60 12L60 60L60 108Z" fill="#D9D9D9" stroke="black" mask="url(#path-3-inside-3_0_1)"/>
+</g>
+<g id="dd-R-size-min">
+<mask id="path-4-inside-4_0_1" fill="white">
+<path d="M60.5 80C63.55 80 66.4751 77.9455 68.6317 74.2886C70.7884 70.6316 72 65.6717 72 60.5C72 55.3283 70.7884 50.3684 68.6317 46.7114C66.4751 43.0545 63.55 41 60.5 41L60.5 60.5L60.5 80Z"/>
+</mask>
+<path d="M60.5 80C63.55 80 66.4751 77.9455 68.6317 74.2886C70.7884 70.6316 72 65.6717 72 60.5C72 55.3283 70.7884 50.3684 68.6317 46.7114C66.4751 43.0545 63.55 41 60.5 41L60.5 60.5L60.5 80Z" fill="#215E73" stroke="black" mask="url(#path-4-inside-4_0_1)"/>
+</g>
+</g>
+<text id="dd-activity-text" transform="translate(13 34.1052) rotate(-15.1565)" fill="black" style="white-space: pre" xml:space="preserve" font-family="Inter" font-size="9" letter-spacing="0em"><tspan x="0.0356445" y="8.77273">activity</tspan></text>
+<text id="dd-distraction-text" transform="translate(66 89.2081) rotate(-21.9681)" fill="black" style="white-space: pre" xml:space="preserve" font-family="Inter" font-size="9" letter-spacing="0em"><tspan x="0.407715" y="8.77273">distraction</tspan></text>
+</g>
+</svg>
