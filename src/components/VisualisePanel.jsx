@@ -104,6 +104,71 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                 style={{ background: "none", border: "none", fontSize: 14, color: T.ghost, cursor: "pointer", padding: "2px 6px" }}
               >✕</button>
             </div>
+            
+            {/* Path Layout Controls */}
+            <div style={{ marginBottom: 12, padding: "8px 10px", background: T.bg, borderRadius: 4, border: `1px solid ${T.ghost}` }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }}>
+                <input 
+                  type="checkbox" 
+                  checked={!!stamp.pathConfig?.enabled} 
+                  onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, enabled: e.target.checked } } : s))}
+                  style={{ accentColor: T.accent }}
+                />
+                <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Path Layout</span>
+              </label>
+              
+              {stamp.pathConfig?.enabled && (
+                <div style={{ paddingLeft: 22, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>type</span>
+                    <select 
+                      value={stamp.pathConfig?.pathType || "line"} 
+                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, pathType: e.target.value } } : s))}
+                      style={{ ...inp, flex: 1, fontSize: 11, padding: "2px 6px" }}
+                    >
+                      <option value="line">Lines (flow)</option>
+                      <option value="circle">Circle</option>
+                      <option value="spiral">Spiral</option>
+                      <option value="custom">Custom Path</option>
+                    </select>
+                  </div>
+                  
+                  {stamp.pathConfig?.pathType === "line" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 11, color: T.mid, width: 50 }}>per row</span>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        value={stamp.pathConfig?.perRow || 10} 
+                        onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, perRow: parseInt(e.target.value) || 10 } } : s))}
+                        style={{ ...inp, flex: 1, fontSize: 11, padding: "2px 6px" }}
+                      />
+                    </div>
+                  )}
+                  
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={!!stamp.pathConfig?.followPath} 
+                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, followPath: e.target.checked } } : s))}
+                      style={{ accentColor: T.accent }}
+                    />
+                    <span style={{ fontSize: 11, color: T.mid }}>rotate to follow path</span>
+                  </label>
+                  
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={!!stamp.pathConfig?.showPath} 
+                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, showPath: e.target.checked } } : s))}
+                      style={{ accentColor: T.accent }}
+                    />
+                    <span style={{ fontSize: 11, color: T.muted }}>show path (debug)</span>
+                  </label>
+                </div>
+              )}
+            </div>
+            
             {stamp.slots.map(slot => (
               <SlotAssign key={slot.id} stamp={stamp} slot={slot} dataMap={dataMap} setDM={setDM} setSlotProp={setSlotProp} columns={columns} csv={csv}/>
             ))}

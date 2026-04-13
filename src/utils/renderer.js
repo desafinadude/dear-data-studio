@@ -165,6 +165,66 @@ export function renderInstance(stamp, dataMap, row, data) {
 
 // ── Output SVG builder ─────────────────────────────────────────────────────────
 
+// Path generators for preset layouts
+function generateLinePath(x, y, width, rows = 1, rowHeight = 100) {
+  // Multiple horizontal lines, left-to-right, stacked vertically
+  const paths = []
+  for (let i = 0; i < rows; i++) {
+    const yPos = y + i * rowHeight
+    paths.push(`M ${x} ${yPos} L ${x + width} ${yPos}`)
+  }
+  return paths.join(" ")
+}
+
+function generateCirclePath(cx, cy, radius) {
+  // Circle path
+  return `M ${cx + radius} ${cy} A ${radius} ${radius} 0 1 1 ${cx + radius - 0.1} ${cy}`
+}
+
+function generateSpiralPath(cx, cy, startRadius, endRadius, turns = 3) {
+  // Archimedean spiral
+  const points = []
+  const steps = 200
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps
+    const angle = t * turns * 2 * Math.PI
+    const r = startRadius + (endRadius - startRadius) * t
+    const x = cx + r * Math.cos(angle)
+    const y = cy + r * Math.sin(angle)
+    points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`)
+  }
+  return points.join(" ")
+}
+
+// Calculate points along an SVG path
+function getPathPoints(pathString, count) {
+  // Parse path and distribute points
+  // For now, create a temporary SVG path element to use getTotalLength/getPointAtLength
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+  path.setAttribute("d", pathString)
+  svg.appendChild(path)
+  document.body.appendChild(svg)
+  
+  const totalLength = path.getTotalLength()
+  const points = []
+  
+  for (let i = 0; i < count; i++) {
+    const distance = (i / Math.max(1, count - 1)) * totalLength
+    const point = path.getPointAtLength(distance)
+    
+    // Get tangent for rotation (sample nearby point)
+    const tangentDist = Math.min(distance + 1, totalLength)
+    const tangentPoint = path.getPointAtLength(tangentDist)
+    const angle = Math.atan2(tangentPoint.y - point.y, tangentPoint.x - point.x) * (180 / Math.PI)
+    
+    points.push({ x: point.x, y: point.y, angle })
+  }
+  
+  document.body.removeChild(svg)
+  return points
+}
+
 function isSlotActive(slot, dataMap) {
   if (slot.type === "size-range")     return !!(dataMap[slot.id]?.["size-range"]?.col)
   if (slot.type === "repeat-indexed") return !!(dataMap[slot.id]?.["count"]?.col)
@@ -194,20 +254,73 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}) {
   for (const stamp of active) {
     const cellH = Math.round(scaledCellW * (stamp.vbH / stamp.vbW))
     
+    // Get stamp-specific path configuration
+    const stampPath = stamp.pathConfig || {}
+    const usePathLayout = stampPath.enabled && stampPath.pathType
+    
     rows.push(`<text x="${layout.pad}" y="${y}" font-family="Georgia,serif" font-size="11" fill="#9b8b7a" letter-spacing="2">${escXML(stamp.name.toUpperCase())}</text>`)
     rows.push(`<line x1="${layout.pad}" y1="${y + 3}" x2="${layout.pad + layout.cols * (scaledCellW + layout.colGap) - layout.colGap}" y2="${y + 3}" stroke="#e8e5e0" stroke-width="1"/>`)
     y += 16
     
-    data.forEach((row, ri) => {
-      const col = ri % layout.cols
-      const rn = Math.floor(ri / layout.cols)
-      const cx = layout.pad + col * (scaledCellW + layout.colGap)
-      const cy = y + rn * (cellH + layout.rowGap)
-      const sc = (scaledCellW / stamp.vbW).toFixed(4)
-      rows.push(`<g transform="translate(${cx},${cy}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
-    })
-    
-    y += Math.ceil(data.length / layout.cols) * (cellH + layout.rowGap) + layout.secGap
+    if (usePathLayout) {
+      // Path-based layout
+      let pathString = ""
+      const baseY = y + 200 // Center of path area
+      const canvasWidth = layout.cols * (scaledCellW + layout.colGap)
+      
+      switch (stampPath.pathType) {
+        case "line":
+          const rows = stampPath.rows || Math.ceil(data.length / (stampPath.perRow || 10))
+          pathString = generateLinePath(layout.pad, baseY - (rows * 60) / 2, canvasWidth, rows, 60)
+          break
+        case "circle":
+          const radius = Math.min(canvasWidth, 400) / 2
+          pathString = generateCirclePath(layout.pad + canvasWidth / 2, baseY, radius)
+          break
+        case "spiral":
+          pathString = generateSpiralPath(layout.pad + canvasWidth / 2, baseY, 30, 200, 3)
+          break
+        case "custom":
+          pathString = stampPath.customPath || ""
+          break
+      }
+      
+      if (pathString) {
+        try {
+          const points = getPathPoints(pathString, data.length)
+          
+          points.forEach((point, ri) => {
+            const row = data[ri]
+            const sc = (scaledCellW / stamp.vbW).toFixed(4)
+            const rotation = stampPath.followPath ? point.angle : 0
+            const rotTransform = rotation ? `rotate(${rotation.toFixed(2)})` : ""
+            rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
+          })
+          
+          // Debug: show path
+          if (stampPath.showPath) {
+            rows.push(`<path d="${pathString}" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2 2"/>`)
+          }
+          
+          y += 450 // Fixed height for path layouts
+        } catch (e) {
+          console.error("Path layout error:", e)
+          // Fallback to grid
+        }
+      }
+    } else {
+      // Grid layout (existing code)
+      data.forEach((row, ri) => {
+        const col = ri % layout.cols
+        const rn = Math.floor(ri / layout.cols)
+        const cx = layout.pad + col * (scaledCellW + layout.colGap)
+        const cy = y + rn * (cellH + layout.rowGap)
+        const sc = (scaledCellW / stamp.vbW).toFixed(4)
+        rows.push(`<g transform="translate(${cx},${cy}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
+      })
+      
+      y += Math.ceil(data.length / layout.cols) * (cellH + layout.rowGap) + layout.secGap
+    }
   }
   
   rows.push(`<line x1="${layout.pad}" y1="${y}" x2="${layout.pad + layout.cols * (scaledCellW + layout.colGap) - layout.colGap}" y2="${y}" stroke="#e8e5e0" stroke-width="1"/>`)

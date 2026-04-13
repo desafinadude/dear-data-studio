@@ -1,7 +1,7 @@
 <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="120" height="120" fill="#F5F5F5"/>
+<rect width="120" height="120" fill="transparent"/>
 <g id="distractions">
-<rect width="120" height="120" fill="white"/>
+
 <g id="dd-L-size-color">
 <g id="dd-L-size-max">
 <mask id="path-1-inside-1_0_1" fill="white">
