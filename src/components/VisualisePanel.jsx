@@ -203,127 +203,245 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                 <input 
                   type="checkbox" 
                   checked={!!stamp.pathConfig?.enabled} 
-                  onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, enabled: e.target.checked } } : s))}
+                  onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { 
+                    ...s, 
+                    pathConfig: { 
+                      ...s.pathConfig, 
+                      enabled: e.target.checked,
+                      pathAssignments: e.target.checked && (!s.pathConfig?.pathAssignments || s.pathConfig.pathAssignments.length === 0) 
+                        ? [{ pathType: canvasSVG ? "canvas" : "line", canvasPath: canvasSVG?.paths[0]?.name, indexStart: 0, indexEnd: csv?.length || 0, scale: 1, spacing: 1, followPath: false, showPath: false }]
+                        : s.pathConfig?.pathAssignments || []
+                    } 
+                  } : s))}
                   style={{ accentColor: T.accent }}
                 />
                 <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Path Layout</span>
               </label>
               
               {stamp.pathConfig?.enabled && (
-                <div style={{ paddingLeft: 22, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>source</span>
-                    <select 
-                      value={stamp.pathConfig?.pathType || (canvasSVG ? "canvas" : "line")} 
-                      onChange={e => {
-                        const newPathType = e.target.value
-                        setStamps(p => p.map(s => {
-                          if (s.id !== stamp.id) return s
-                          const newConfig = { ...s.pathConfig, pathType: newPathType }
-                          // Auto-set first canvas path when switching to canvas mode
-                          if (newPathType === "canvas" && canvasSVG && !newConfig.canvasPath) {
-                            newConfig.canvasPath = canvasSVG.paths[0]?.name
-                          }
-                          return { ...s, pathConfig: newConfig }
-                        }))
-                      }}
-                      style={{ ...inp, flex: 1, fontSize: 11, padding: "2px 6px" }}
-                    >
-                      {canvasSVG && <option value="canvas">Canvas Path</option>}
-                      <option value="line">Lines (flow)</option>
-                      <option value="circle">Circle</option>
-                      <option value="spiral">Spiral</option>
-                    </select>
-                  </div>
-                  
-                  {stamp.pathConfig?.pathType === "canvas" && canvasSVG && (
-                    <>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 11, color: T.mid, width: 50 }}>path</span>
+                <div style={{ paddingLeft: 22, display: "flex", flexDirection: "column", gap: 10 }}>
+                  {/* Path Assignments */}
+                  {(stamp.pathConfig?.pathAssignments || []).map((assignment, idx) => (
+                    <div key={idx} style={{ padding: 8, background: "#fff", borderRadius: 4, border: `1px solid ${T.ghost}` }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: T.mid }}>Path {idx + 1}</span>
+                        <button 
+                          onClick={() => setStamps(p => p.map(s => s.id === stamp.id ? {
+                            ...s,
+                            pathConfig: {
+                              ...s.pathConfig,
+                              pathAssignments: s.pathConfig.pathAssignments.filter((_, i) => i !== idx)
+                            }
+                          } : s))}
+                          style={{ background: "none", border: "none", fontSize: 12, color: T.ghost, cursor: "pointer", padding: "2px 6px" }}
+                        >✕</button>
+                      </div>
+                      
+                      {/* Path Type */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, color: T.muted, width: 50 }}>type</span>
                         <select 
-                          value={stamp.pathConfig?.canvasPath || canvasSVG.paths[0]?.name} 
-                          onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, canvasPath: e.target.value } } : s))}
-                          style={{ ...inp, flex: 1, fontSize: 11, padding: "2px 6px" }}
+                          value={assignment.pathType || (canvasSVG ? "canvas" : "line")} 
+                          onChange={e => {
+                            const newType = e.target.value
+                            setStamps(p => p.map(s => s.id === stamp.id ? {
+                              ...s,
+                              pathConfig: {
+                                ...s.pathConfig,
+                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? {
+                                  ...a,
+                                  pathType: newType,
+                                  canvasPath: newType === "canvas" && canvasSVG ? (a.canvasPath || canvasSVG.paths[0]?.name) : a.canvasPath
+                                } : a)
+                              }
+                            } : s))
+                          }}
+                          style={{ ...inp, flex: 1, fontSize: 10, padding: "2px 6px" }}
                         >
-                          {canvasSVG.paths.map(p => (
-                            <option key={p.name} value={p.name}>{p.name}</option>
-                          ))}
+                          {canvasSVG && <option value="canvas">Canvas Path</option>}
+                          <option value="line">Lines (flow)</option>
+                          <option value="circle">Circle</option>
+                          <option value="spiral">Spiral</option>
                         </select>
                       </div>
-                      {!stamp.pathConfig?.canvasPath && (
-                        <div style={{ fontSize: 10, color: "#e67e22", paddingLeft: 58 }}>
-                          ⚠ No path selected - stamps won't appear
+                      
+                      {/* Canvas Path Selection */}
+                      {assignment.pathType === "canvas" && canvasSVG && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 10, color: T.muted, width: 50 }}>path</span>
+                          <select 
+                            value={assignment.canvasPath || canvasSVG.paths[0]?.name} 
+                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                              ...s,
+                              pathConfig: {
+                                ...s.pathConfig,
+                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? { ...a, canvasPath: e.target.value } : a)
+                              }
+                            } : s))}
+                            style={{ ...inp, flex: 1, fontSize: 10, padding: "2px 6px" }}
+                          >
+                            {canvasSVG.paths.map(p => (
+                              <option key={p.name} value={p.name}>{p.name}</option>
+                            ))}
+                          </select>
                         </div>
                       )}
-                    </>
-                  )}
-                  
-                  {stamp.pathConfig?.pathType === "canvas" && !canvasSVG && (
-                    <div style={{ fontSize: 10, color: "#e67e22", paddingLeft: 58 }}>
-                      ⚠ Import a canvas SVG first
+                      
+                      {/* Data Range */}
+                      <div style={{ marginBottom: 6 }}>
+                        <div style={{ fontSize: 10, color: T.muted, marginBottom: 3 }}>Data range:</div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            max={csv?.length ? csv.length - 1 : 0} 
+                            value={assignment.indexStart ?? 0} 
+                            placeholder="Start"
+                            onChange={e => {
+                              const val = parseInt(e.target.value) || 0
+                              setStamps(p => p.map(s => s.id === stamp.id ? {
+                                ...s,
+                                pathConfig: {
+                                  ...s.pathConfig,
+                                  pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? {
+                                    ...a,
+                                    indexStart: Math.max(0, Math.min(val, csv?.length - 1 || 0))
+                                  } : a)
+                                }
+                              } : s))
+                            }}
+                            style={{ ...inp, flex: 1, fontSize: 10, padding: "3px 6px" }}
+                          />
+                          <span style={{ fontSize: 10, color: T.muted, alignSelf: "center" }}>to</span>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            max={csv?.length || 0} 
+                            value={assignment.indexEnd ?? (csv?.length || 0)} 
+                            placeholder="End"
+                            onChange={e => {
+                              const val = parseInt(e.target.value) || (csv?.length || 0)
+                              setStamps(p => p.map(s => s.id === stamp.id ? {
+                                ...s,
+                                pathConfig: {
+                                  ...s.pathConfig,
+                                  pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? {
+                                    ...a,
+                                    indexEnd: Math.max(1, Math.min(val, csv?.length || 0))
+                                  } : a)
+                                }
+                              } : s))
+                            }}
+                            style={{ ...inp, flex: 1, fontSize: 10, padding: "3px 6px" }}
+                          />
+                        </div>
+                        <div style={{ fontSize: 9, color: T.muted, marginTop: 2, fontStyle: "italic" }}>
+                          {Math.max(0, (assignment.indexEnd ?? (csv?.length || 0)) - (assignment.indexStart ?? 0))} rows
+                        </div>
+                      </div>
+                      
+                      {/* Scale & Spacing */}
+                      <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 9, color: T.muted, marginBottom: 2 }}>Scale: {(assignment.scale || 1).toFixed(1)}×</div>
+                          <input 
+                            type="range" 
+                            min="0.3" 
+                            max="3" 
+                            step="0.1" 
+                            value={assignment.scale || 1} 
+                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                              ...s,
+                              pathConfig: {
+                                ...s.pathConfig,
+                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? { ...a, scale: parseFloat(e.target.value) } : a)
+                              }
+                            } : s))}
+                            style={{ width: "100%" }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 9, color: T.muted, marginBottom: 2 }}>Spacing: {(assignment.spacing || 1).toFixed(1)}×</div>
+                          <input 
+                            type="range" 
+                            min="0.5" 
+                            max="3" 
+                            step="0.1" 
+                            value={assignment.spacing || 1} 
+                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                              ...s,
+                              pathConfig: {
+                                ...s.pathConfig,
+                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? { ...a, spacing: parseFloat(e.target.value) } : a)
+                              }
+                            } : s))}
+                            style={{ width: "100%" }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Options */}
+                      <div style={{ display: "flex", gap: 12 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                          <input 
+                            type="checkbox" 
+                            checked={!!assignment.followPath} 
+                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                              ...s,
+                              pathConfig: {
+                                ...s.pathConfig,
+                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? { ...a, followPath: e.target.checked } : a)
+                              }
+                            } : s))}
+                            style={{ accentColor: T.accent }}
+                          />
+                          <span style={{ fontSize: 9, color: T.mid }}>rotate</span>
+                        </label>
+                        
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                          <input 
+                            type="checkbox" 
+                            checked={!!assignment.showPath} 
+                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                              ...s,
+                              pathConfig: {
+                                ...s.pathConfig,
+                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? { ...a, showPath: e.target.checked } : a)
+                              }
+                            } : s))}
+                            style={{ accentColor: T.accent }}
+                          />
+                          <span style={{ fontSize: 9, color: T.mid }}>show path</span>
+                        </label>
+                      </div>
                     </div>
-                  )}
+                  ))}
                   
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>scale</span>
-                    <input 
-                      type="range" 
-                      min="0.3" 
-                      max="3" 
-                      step="0.1" 
-                      value={stamp.pathConfig?.scale || 1} 
-                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, scale: parseFloat(e.target.value) } } : s))}
-                      style={{ flex: 1 }}
-                    />
-                    <span style={{ fontSize: 11, color: T.muted, width: 30, textAlign: "right" }}>{(stamp.pathConfig?.scale || 1).toFixed(1)}×</span>
-                  </div>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>spacing</span>
-                    <input 
-                      type="range" 
-                      min="0.5" 
-                      max="3" 
-                      step="0.1" 
-                      value={stamp.pathConfig?.spacing || 1} 
-                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, spacing: parseFloat(e.target.value) } } : s))}
-                      style={{ flex: 1 }}
-                    />
-                    <span style={{ fontSize: 11, color: T.muted, width: 30, textAlign: "right" }}>{(stamp.pathConfig?.spacing || 1).toFixed(1)}×</span>
-                  </div>
-                  
-                  {stamp.pathConfig?.pathType === "line" && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 11, color: T.mid, width: 50 }}>per row</span>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        value={stamp.pathConfig?.perRow || 10} 
-                        onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, perRow: parseInt(e.target.value) || 10 } } : s))}
-                        style={{ ...inp, flex: 1, fontSize: 11, padding: "2px 6px" }}
-                      />
-                    </div>
-                  )}
-                  
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input 
-                      type="checkbox" 
-                      checked={!!stamp.pathConfig?.followPath} 
-                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, followPath: e.target.checked } } : s))}
-                      style={{ accentColor: T.accent }}
-                    />
-                    <span style={{ fontSize: 11, color: T.mid }}>rotate to follow path</span>
-                  </label>
-                  
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input 
-                      type="checkbox" 
-                      checked={!!stamp.pathConfig?.showPath} 
-                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, showPath: e.target.checked } } : s))}
-                      style={{ accentColor: T.accent }}
-                    />
-                    <span style={{ fontSize: 11, color: T.mid }}>show path outline</span>
-                  </label>
+                  {/* Add Path Button */}
+                  <button
+                    onClick={() => setStamps(p => p.map(s => s.id === stamp.id ? {
+                      ...s,
+                      pathConfig: {
+                        ...s.pathConfig,
+                        pathAssignments: [
+                          ...(s.pathConfig.pathAssignments || []),
+                          {
+                            pathType: canvasSVG ? "canvas" : "line",
+                            canvasPath: canvasSVG?.paths[0]?.name,
+                            indexStart: 0,
+                            indexEnd: csv?.length || 0,
+                            scale: 1,
+                            spacing: 1,
+                            followPath: false,
+                            showPath: false
+                          }
+                        ]
+                      }
+                    } : s))}
+                    style={{ ...inp, padding: "6px 10px", fontSize: 11, background: T.accent, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                  >
+                    + Add Path
+                  </button>
                 </div>
               )}
             </div>
