@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#f5f5f5"/>
+  
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial" font-size="24" fill="#333" text-anchor="middle">Test Canvas</text>
+  
+  <!-- Decorative elements -->
+  <circle cx="100" cy="100" r="30" fill="#e0e0e0" opacity="0.5"/>
+  <circle cx="700" cy="100" r="30" fill="#e0e0e0" opacity="0.5"/>
+  
+  <!-- Path 1: Horizontal line across top -->
+  <path id="path-1" d="M 100 150 L 700 150" stroke="#ccc" stroke-width="2" fill="none"/>
+  
+  <!-- Path 2: Curved path in middle -->
+  <path id="path-2" d="M 100 300 Q 400 200, 700 300" stroke="#ccc" stroke-width="2" fill="none"/>
+  
+  <!-- Path 3: Wavy path at bottom -->
+  <path id="path-3" d="M 100 450 Q 200 400, 300 450 T 500 450 T 700 450" stroke="#ccc" stroke-width="2" fill="none"/>
+</svg>

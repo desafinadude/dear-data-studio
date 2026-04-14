@@ -7,6 +7,7 @@ import SlotAssign from "./SlotAssign.jsx"
 export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns }) {
   const [error, setError] = useState(null)
   const [drag, setDrag] = useState(false)
+  const [canvasSVG, setCanvasSVG] = useState(null) // Canvas SVG with paths
   const [layoutConfig, setLayoutConfig] = useState({
     type: "grid",
     scale: 1.0,
@@ -16,6 +17,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
     rowGap: 18
   })
   const fileRef = useRef()
+  const canvasRef = useRef()
   
   const setDM = (slotId, encType, field, val) =>
     setDataMap(p => ({ ...p, [slotId]: { ...p[slotId], [encType]: { ...(p[slotId]?.[encType] || {}), [field]: val } } }))
@@ -23,7 +25,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
   const setSlotProp = (stampId, slotId, field, val) =>
     setStamps(p => p.map(s => s.id !== stampId ? s : { ...s, slots: s.slots.map(sl => sl.id !== slotId ? sl : { ...sl, [field]: val }) }))
 
-  const svgOut = useMemo(() => buildOutputSVG(stamps, dataMap, csv, layoutConfig), [stamps, dataMap, csv, layoutConfig])
+  const svgOut = useMemo(() => buildOutputSVG(stamps, dataMap, csv, layoutConfig, canvasSVG), [stamps, dataMap, csv, layoutConfig, canvasSVG])
 
   const loadStamp = text => {
     setError(null)
@@ -36,9 +38,66 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
     }
   }
 
+  const loadCanvas = text => {
+    setError(null)
+    try {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(text, "image/svg+xml")
+      if (doc.querySelector("parsererror")) throw new Error("Invalid SVG file")
+      
+      const svgEl = doc.querySelector("svg")
+      const vb = (svgEl.getAttribute("viewBox") || "0 0 100 100").split(/[\s,]+/).map(Number)
+      const [vbX, vbY, vbW, vbH] = vb
+      
+      // Extract ALL paths with IDs (anywhere in the SVG, including nested in groups)
+      const pathElements = [...svgEl.querySelectorAll("path[id]")]
+      const paths = pathElements.map(p => {
+        const id = p.getAttribute("id")
+        return {
+          id: id,
+          d: p.getAttribute("d"),
+          name: id // Use the ID directly as the name
+        }
+      })
+      
+      if (paths.length === 0) {
+        throw new Error("No paths with IDs found. Add an 'id' attribute to your <path> elements (e.g., id='spiral', id='path-1', etc.)")
+      }
+      
+      console.log("Found paths:", paths)
+      
+      // Clone the SVG and remove the paths from the clone
+      const clonedSVG = svgEl.cloneNode(true)
+      pathElements.forEach(p => {
+        const clone = clonedSVG.querySelector(`#${p.getAttribute("id")}`)
+        if (clone) clone.remove()
+      })
+      
+      const baseSVG = new XMLSerializer().serializeToString(clonedSVG)
+        .replace(/<\?xml[^?]*\?>\s*/, "")
+      
+      console.log("Canvas loaded:", { vbW, vbH, pathCount: paths.length, baseSVGLength: baseSVG.length })
+      
+      setCanvasSVG({
+        viewBox: `${vbX} ${vbY} ${vbW} ${vbH}`,
+        vbX, vbY, vbW, vbH,
+        baseSVG,
+        paths,
+        svgText: text
+      })
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   const onFile = e => {
     const f = e.target.files[0]; if (!f) return
     const r = new FileReader(); r.onload = ev => loadStamp(ev.target.result); r.readAsText(f)
+  }
+
+  const onCanvasFile = e => {
+    const f = e.target.files[0]; if (!f) return
+    const r = new FileReader(); r.onload = ev => loadCanvas(ev.target.result); r.readAsText(f)
   }
 
   const onDrop = e => {
@@ -60,6 +119,39 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
       <div style={{ width: 360, flexShrink: 0, borderRight: `1px solid ${T.border}`, overflowY: "auto", background: T.p1, padding: "16px 15px" }}>
         <div style={{ fontFamily: "'Caveat',cursive", fontSize: 22, fontWeight: 700, color: T.accent, marginBottom: 3 }}>② assign</div>
         <div style={{ fontSize: 13, color: T.muted, marginBottom: 16 }}>import stamp · connect slots to columns</div>
+        
+        {/* Canvas importer */}
+        <div style={{ marginBottom: 16, padding: "10px 12px", background: canvasSVG ? "#e8f5e9" : T.bg, border: `1px solid ${canvasSVG ? "#81c784" : T.ghost}`, borderRadius: 4 }}>
+          <div style={{ fontSize: 12, color: T.mid, fontWeight: 600, marginBottom: 6 }}>
+            {canvasSVG ? "✓ Canvas loaded" : "Canvas SVG (optional)"}
+          </div>
+          {canvasSVG ? (
+            <div style={{ fontSize: 10, color: T.muted, marginBottom: 6 }}>
+              {canvasSVG.vbW} × {canvasSVG.vbH} · {canvasSVG.paths.length} path{canvasSVG.paths.length !== 1 ? 's' : ''}: {canvasSVG.paths.map(p => p.name).join(", ")}
+            </div>
+          ) : (
+            <div style={{ fontSize: 10, color: T.muted, marginBottom: 6 }}>
+              Import SVG with paths (id="path-1", etc.) for layout
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button 
+              onClick={() => canvasRef.current.click()} 
+              style={{ flex: 1, padding: "4px 8px", borderRadius: 3, border: `1px solid ${T.border}`, background: "white", fontSize: 11, cursor: "pointer" }}
+            >
+              {canvasSVG ? "Replace" : "Import Canvas"}
+            </button>
+            {canvasSVG && (
+              <button 
+                onClick={() => setCanvasSVG(null)} 
+                style={{ padding: "4px 8px", borderRadius: 3, border: `1px solid ${T.border}`, background: "white", fontSize: 11, cursor: "pointer", color: T.ghost }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <input ref={canvasRef} type="file" accept=".svg" onChange={onCanvasFile} style={{ display: "none" }}/>
+        </div>
         
         {/* Stamp importer */}
         <div
@@ -120,17 +212,84 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
               {stamp.pathConfig?.enabled && (
                 <div style={{ paddingLeft: 22, display: "flex", flexDirection: "column", gap: 6 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>type</span>
+                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>source</span>
                     <select 
-                      value={stamp.pathConfig?.pathType || "line"} 
-                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, pathType: e.target.value } } : s))}
+                      value={stamp.pathConfig?.pathType || (canvasSVG ? "canvas" : "line")} 
+                      onChange={e => {
+                        const newPathType = e.target.value
+                        setStamps(p => p.map(s => {
+                          if (s.id !== stamp.id) return s
+                          const newConfig = { ...s.pathConfig, pathType: newPathType }
+                          // Auto-set first canvas path when switching to canvas mode
+                          if (newPathType === "canvas" && canvasSVG && !newConfig.canvasPath) {
+                            newConfig.canvasPath = canvasSVG.paths[0]?.name
+                          }
+                          return { ...s, pathConfig: newConfig }
+                        }))
+                      }}
                       style={{ ...inp, flex: 1, fontSize: 11, padding: "2px 6px" }}
                     >
+                      {canvasSVG && <option value="canvas">Canvas Path</option>}
                       <option value="line">Lines (flow)</option>
                       <option value="circle">Circle</option>
                       <option value="spiral">Spiral</option>
-                      <option value="custom">Custom Path</option>
                     </select>
+                  </div>
+                  
+                  {stamp.pathConfig?.pathType === "canvas" && canvasSVG && (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: T.mid, width: 50 }}>path</span>
+                        <select 
+                          value={stamp.pathConfig?.canvasPath || canvasSVG.paths[0]?.name} 
+                          onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, canvasPath: e.target.value } } : s))}
+                          style={{ ...inp, flex: 1, fontSize: 11, padding: "2px 6px" }}
+                        >
+                          {canvasSVG.paths.map(p => (
+                            <option key={p.name} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {!stamp.pathConfig?.canvasPath && (
+                        <div style={{ fontSize: 10, color: "#e67e22", paddingLeft: 58 }}>
+                          ⚠ No path selected - stamps won't appear
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
+                  {stamp.pathConfig?.pathType === "canvas" && !canvasSVG && (
+                    <div style={{ fontSize: 10, color: "#e67e22", paddingLeft: 58 }}>
+                      ⚠ Import a canvas SVG first
+                    </div>
+                  )}
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>scale</span>
+                    <input 
+                      type="range" 
+                      min="0.3" 
+                      max="3" 
+                      step="0.1" 
+                      value={stamp.pathConfig?.scale || 1} 
+                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, scale: parseFloat(e.target.value) } } : s))}
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: 11, color: T.muted, width: 30, textAlign: "right" }}>{(stamp.pathConfig?.scale || 1).toFixed(1)}×</span>
+                  </div>
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, color: T.mid, width: 50 }}>spacing</span>
+                    <input 
+                      type="range" 
+                      min="0.5" 
+                      max="3" 
+                      step="0.1" 
+                      value={stamp.pathConfig?.spacing || 1} 
+                      onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, spacing: parseFloat(e.target.value) } } : s))}
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: 11, color: T.muted, width: 30, textAlign: "right" }}>{(stamp.pathConfig?.spacing || 1).toFixed(1)}×</span>
                   </div>
                   
                   {stamp.pathConfig?.pathType === "line" && (
@@ -163,7 +322,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                       onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { ...s, pathConfig: { ...s.pathConfig, showPath: e.target.checked } } : s))}
                       style={{ accentColor: T.accent }}
                     />
-                    <span style={{ fontSize: 11, color: T.muted }}>show path (debug)</span>
+                    <span style={{ fontSize: 11, color: T.mid }}>show path outline</span>
                   </label>
                 </div>
               )}

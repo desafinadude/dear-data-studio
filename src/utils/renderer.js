@@ -196,6 +196,24 @@ function generateSpiralPath(cx, cy, startRadius, endRadius, turns = 3) {
   return points.join(" ")
 }
 
+// Get the starting point of a path
+function getPathStartPoint(pathString) {
+  try {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    path.setAttribute("d", pathString)
+    svg.appendChild(path)
+    document.body.appendChild(svg)
+    
+    const point = path.getPointAtLength(0)
+    document.body.removeChild(svg)
+    
+    return { x: point.x, y: point.y }
+  } catch (e) {
+    return null
+  }
+}
+
 // Calculate points along an SVG path
 function getPathPoints(pathString, count) {
   // Parse path and distribute points
@@ -231,11 +249,96 @@ function isSlotActive(slot, dataMap) {
   return slot.encs.some(enc => (dataMap[slot.id] || {})[enc.type]?.col)
 }
 
-export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}) {
+export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasSVG = null) {
   if (!data?.length) return null
   const active = stamps.filter(s => s.slots.some(sl => isSlotActive(sl, dataMap)))
   if (!active.length) return null
   
+  // If canvas SVG is provided, use canvas-based layout
+  if (canvasSVG) {
+    const rows = []
+    
+    // Add base canvas SVG as background (extract just the inner content)
+    const baseSVGContent = canvasSVG.baseSVG
+      .replace(/<svg[^>]*>/, '')
+      .replace(/<\/svg>/, '')
+      .trim()
+    if (baseSVGContent) {
+      rows.push(baseSVGContent)
+    }
+    
+    // Show paths for debugging (either all paths or specific ones based on stamp config)
+    const stampsWithShowPath = stamps.filter(s => s.pathConfig?.showPath)
+    
+    if (stampsWithShowPath.length > 0) {
+      const pathsToShow = new Set()
+      
+      // Collect paths that should be shown
+      stampsWithShowPath.forEach(stamp => {
+        if (stamp.pathConfig?.pathType === "canvas" && stamp.pathConfig?.canvasPath) {
+          pathsToShow.add(stamp.pathConfig.canvasPath)
+        }
+      })
+      
+      // If any stamp wants to show paths, show all requested paths
+      canvasSVG.paths.forEach(p => {
+        if (pathsToShow.size === 0 || pathsToShow.has(p.name)) {
+          // More visible styling for the debug paths
+          rows.push(`<path d="${p.d}" fill="none" stroke="#ff0000" stroke-width="3" opacity="0.6" stroke-dasharray="5 3" pointer-events="none"/>`)
+          
+          // Add a label at the start of the path with background
+          const firstPoint = getPathStartPoint(p.d)
+          if (firstPoint) {
+            rows.push(`<circle cx="${firstPoint.x}" cy="${firstPoint.y}" r="20" fill="#ff0000" opacity="0.2"/>`)
+            rows.push(`<text x="${firstPoint.x}" y="${firstPoint.y + 5}" font-size="14" font-weight="bold" fill="#ff0000" text-anchor="middle">${p.name}</text>`)
+          }
+        }
+      })
+    }
+    
+    for (const stamp of active) {
+      const stampPath = stamp.pathConfig || {}
+      
+      // Check if stamp uses a canvas path
+      if (stampPath.enabled && stampPath.pathType === "canvas" && stampPath.canvasPath) {
+        const canvasPath = canvasSVG.paths.find(p => p.name === stampPath.canvasPath)
+        
+        if (canvasPath) {
+          try {
+            // Use per-stamp spacing to adjust point distribution
+            const spacing = stampPath.spacing || 1.0
+            const adjustedCount = Math.max(1, Math.round(data.length / spacing))
+            const points = getPathPoints(canvasPath.d, adjustedCount)
+            
+            // Use per-stamp scale
+            const stampScale = stampPath.scale || 1.0
+            const scaledCellW = (layoutConfig.cellW || 110) * stampScale
+            const sc = (scaledCellW / stamp.vbW).toFixed(4)
+            
+            // Only render up to data.length items
+            const renderCount = Math.min(points.length, data.length)
+            for (let ri = 0; ri < renderCount; ri++) {
+              const point = points[ri]
+              const row = data[ri]
+              const rotation = stampPath.followPath ? point.angle : 0
+              const rotTransform = rotation ? `rotate(${rotation.toFixed(2)})` : ""
+              rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
+            }
+          } catch (e) {
+            console.error("Canvas path layout error:", e)
+          }
+        } else {
+          console.warn(`Canvas path "${stampPath.canvasPath}" not found. Available paths:`, canvasSVG.paths.map(p => p.name))
+        }
+      }
+    }
+    
+    const W = canvasSVG.vbW
+    const H = canvasSVG.vbH
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${canvasSVG.vbX} ${canvasSVG.vbY} ${W} ${H}" width="${W}" height="${H}"><title>Dear Data Portrait</title>\n${rows.join("\n")}\n</svg>`
+  }
+  
+  // Original grid/path layout code for when no canvas is provided
   // Layout configuration with defaults
   const layout = {
     type: layoutConfig.type || "grid",      // "grid" or "flow"
@@ -268,6 +371,11 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}) {
       const baseY = y + 200 // Center of path area
       const canvasWidth = layout.cols * (scaledCellW + layout.colGap)
       
+      // Use per-stamp scale and spacing
+      const stampScale = stampPath.scale || 1.0
+      const spacing = stampPath.spacing || 1.0
+      const stampScaledCellW = layout.cellW * stampScale
+      
       switch (stampPath.pathType) {
         case "line":
           const rows = stampPath.rows || Math.ceil(data.length / (stampPath.perRow || 10))
@@ -287,15 +395,20 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}) {
       
       if (pathString) {
         try {
-          const points = getPathPoints(pathString, data.length)
+          // Adjust point count based on spacing
+          const adjustedCount = Math.max(1, Math.round(data.length / spacing))
+          const points = getPathPoints(pathString, adjustedCount)
           
-          points.forEach((point, ri) => {
+          // Only render up to data.length items
+          const renderCount = Math.min(points.length, data.length)
+          for (let ri = 0; ri < renderCount; ri++) {
+            const point = points[ri]
             const row = data[ri]
-            const sc = (scaledCellW / stamp.vbW).toFixed(4)
+            const sc = (stampScaledCellW / stamp.vbW).toFixed(4)
             const rotation = stampPath.followPath ? point.angle : 0
             const rotTransform = rotation ? `rotate(${rotation.toFixed(2)})` : ""
             rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
-          })
+          }
           
           // Debug: show path
           if (stampPath.showPath) {
@@ -309,17 +422,26 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}) {
         }
       }
     } else {
-      // Grid layout (existing code)
+      // Grid layout - use per-stamp scale and spacing
+      const stampScale = stampPath.scale || 1.0
+      const spacing = stampPath.spacing || 1.0
+      const stampScaledCellW = layout.cellW * stampScale
+      const stampCellH = Math.round(stampScaledCellW * (stamp.vbH / stamp.vbW))
+      
+      // Apply spacing by adjusting gaps
+      const adjustedColGap = layout.colGap * spacing
+      const adjustedRowGap = layout.rowGap * spacing
+      
       data.forEach((row, ri) => {
         const col = ri % layout.cols
         const rn = Math.floor(ri / layout.cols)
-        const cx = layout.pad + col * (scaledCellW + layout.colGap)
-        const cy = y + rn * (cellH + layout.rowGap)
-        const sc = (scaledCellW / stamp.vbW).toFixed(4)
+        const cx = layout.pad + col * (stampScaledCellW + adjustedColGap)
+        const cy = y + rn * (stampCellH + adjustedRowGap)
+        const sc = (stampScaledCellW / stamp.vbW).toFixed(4)
         rows.push(`<g transform="translate(${cx},${cy}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
       })
       
-      y += Math.ceil(data.length / layout.cols) * (cellH + layout.rowGap) + layout.secGap
+      y += Math.ceil(data.length / layout.cols) * (stampCellH + adjustedRowGap) + layout.secGap
     }
   }
   
