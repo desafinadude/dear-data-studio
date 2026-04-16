@@ -4,26 +4,26 @@ export const PRESETS = [
     emoji: "👥",
     numRows: 20,
     vars: [
-      { name: "type",               type: "category", options: "new,reunion", colors: "#e09f3e,#c1440e" },
-      { name: "gender",             type: "category", options: "man,woman,nonbinary", colors: "#1d3557,#9e2a2b,#2d6a4f" },
-      { name: "where_met",          type: "category", options: "school,home,other", colors: "#457b9d,#606c38,#7209b7,#ef6c00,#888888" },
-      { name: "introducer",         type: "category", options: "them,me,friend", colors: "#c9972b,#9b2226,#2d6a4f,#888888" },
-      { name: "supposed_to_know", type: "category", options: "yes,no", colors: "#9b2226,#2d6a4f,#888888" },
-      { name: "spoke_more_than_intro", type: "category", options: "yes,no", colors: "#9b2226,#2d6a4f" },
+      { name: "type",               type: "category", options: "new,reunion" },
+      { name: "gender",             type: "category", options: "man,woman,nonbinary", has_color: true, colors: "#12c7b5,#ffc835,#9ec521" },
+      { name: "where_met",          type: "category", options: "school,home,other" },
+      { name: "introducer",         type: "category", options: "them,me,friend" },
+      { name: "supposed_to_know", type: "category", options: "yes,no" },
+      { name: "spoke_more_than_intro", type: "category", options: "yes,no" },
     ],
-  }
-  // {
-  //   name: "distractions",
-  //   emoji: "🔔",
-  //   numRows: 28,
-  //   vars: [
-  //     { name: "distraction_length",        type: "number", min: 1, max: 60 },
-  //     { name: "main_activity",             type: "category", options: "working,music,supper,playing,meeting" },
-  //     { name: "main_activity_subcategory", type: "category", options: "email,writing,kids," },
-  //     { name: "distraction",               type: "category", options: "kids,phone,whatsapp,door" },
-  //     { name: "distraction_subcategory",   type: "category", options: "andy,family,friend,spam" },
-  //   ],
-  // },
+  },
+  {
+    name: "distractions",
+    emoji: "🔔",
+    numRows: 28,
+    vars: [
+      { name: "distraction_length",        type: "number", min: 1, max: 60 },
+      { name: "main_activity",             type: "category", options: "working,music,supper,playing,meeting", has_color: false },
+      { name: "main_activity_subcategory", type: "category", options: "email,writing,kids,", has_color: false },
+      { name: "distraction",               type: "category", options: "kids,phone,whatsapp,door", has_color: false },
+      { name: "distraction_subcategory",   type: "category", options: "andy,family,friend,spam", has_color: false },
+    ],
+  },
 ]
 
 // Generate a pleasant random color palette

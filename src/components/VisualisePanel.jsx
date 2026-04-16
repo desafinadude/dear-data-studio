@@ -9,6 +9,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
   const [error, setError] = useState(null)
   const [drag, setDrag] = useState(false)
   const [canvasSVG, setCanvasSVG] = useState(null) // Canvas SVG with paths
+  const [selectedStampId, setSelectedStampId] = useState(null) // Currently selected stamp
   const [layoutConfig, setLayoutConfig] = useState({
     type: "grid",
     scale: 1.0,
@@ -20,6 +21,14 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
   })
   const fileRef = useRef()
   const canvasRef = useRef()
+  
+  // Auto-select first stamp when stamps change
+  if (stamps.length > 0 && !selectedStampId) {
+    setSelectedStampId(stamps[0].id)
+  }
+  
+  // Get currently selected stamp
+  const selectedStamp = stamps.find(s => s.id === selectedStampId)
   
   const setDM = (slotId, encType, field, val) =>
     setDataMap(p => ({ ...p, [slotId]: { ...p[slotId], [encType]: { ...(p[slotId]?.[encType] || {}), [field]: val } } }))
@@ -34,7 +43,10 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
     try {
       const p = parseStamp(text)
       if (!p.slots.length) throw new Error("No dd- layers found. Add at least one layer with a dd- prefix.")
-      setStamps(prev => [...prev, { ...p, id: mkId(), name: `stamp ${prev.length + 1}`, svgText: text }])
+      // Get filename from fileRef if available
+      const fileName = fileRef.current?.files[0]?.name || `stamp ${stamps.length + 1}`
+      const stampName = fileName.replace(/\.svg$/i, '')
+      setStamps(prev => [...prev, { ...p, id: mkId(), name: stampName, svgText: text }])
     } catch (e) {
       setError(e.message)
     }
@@ -155,6 +167,46 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
           <input ref={canvasRef} type="file" accept=".svg" onChange={onCanvasFile} style={{ display: "none" }}/>
         </div>
         
+        {/* Path Layout checkbox - only show if canvas is loaded */}
+        {canvasSVG && selectedStamp && (
+          <div style={{ marginBottom: 16, padding: "8px 10px", background: T.bg, borderRadius: 4, border: `1px solid ${T.ghost}` }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input 
+                type="checkbox" 
+                checked={!!selectedStamp.pathConfig?.enabled} 
+                onChange={e => setStamps(p => p.map(s => s.id === selectedStamp.id ? { 
+                  ...s, 
+                  pathConfig: { 
+                    ...s.pathConfig, 
+                    enabled: e.target.checked,
+                    pathAssignments: e.target.checked && (!s.pathConfig?.pathAssignments || s.pathConfig.pathAssignments.length === 0) 
+                      ? [{ canvasPath: canvasSVG?.paths[0]?.name, indexStart: 0, indexEnd: csv?.length || 0, scale: 1, spacing: 1, followPath: false, showPath: false }]
+                      : s.pathConfig?.pathAssignments || []
+                  } 
+                } : s))}
+                style={{ accentColor: T.accent }}
+              />
+              <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Path Layout</span>
+            </label>
+          </div>
+        )}
+        
+        {/* Stamp selector dropdown - only show if there are stamps */}
+        {stamps.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: T.muted, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Stamp</div>
+            <select 
+              value={selectedStampId || ""} 
+              onChange={e => setSelectedStampId(e.target.value)}
+              style={{ ...inp, width: "100%", fontSize: 13, padding: "6px 8px", fontFamily: "'Courier Prime', monospace", fontWeight: 400 }}
+            >
+              {stamps.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        
         {/* Stamp importer */}
         <div
           onDragOver={e => { e.preventDefault(); setDrag(true) }}
@@ -184,51 +236,21 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
           </div>
         )}
 
-        {stamps.map(stamp => (
-          <div key={stamp.id} style={{ marginBottom: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${T.ghost}` }}>
-              <input
-                value={stamp.name}
-                onChange={e => setStamps(p => p.map(x => x.id === stamp.id ? { ...x, name: e.target.value } : x))}
-                style={{ ...inp, flex: 1, fontFamily: "'Caveat',cursive", fontSize: 15, padding: "4px 8px" }}
-                placeholder="stamp name"
-              />
-              <button 
-                onClick={() => setStamps(p => p.filter(x => x.id !== stamp.id))} 
-                style={{ background: "none", border: "none", fontSize: 14, color: T.ghost, cursor: "pointer", padding: "2px 6px" }}
-              >✕</button>
-            </div>
-            
-            {/* Path Layout Controls */}
-            <div style={{ marginBottom: 12, padding: "8px 10px", background: T.bg, borderRadius: 4, border: `1px solid ${T.ghost}` }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, cursor: "pointer" }}>
-                <input 
-                  type="checkbox" 
-                  checked={!!stamp.pathConfig?.enabled} 
-                  onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? { 
-                    ...s, 
-                    pathConfig: { 
-                      ...s.pathConfig, 
-                      enabled: e.target.checked,
-                      pathAssignments: e.target.checked && (!s.pathConfig?.pathAssignments || s.pathConfig.pathAssignments.length === 0) 
-                        ? [{ canvasPath: canvasSVG?.paths[0]?.name, indexStart: 0, indexEnd: csv?.length || 0, scale: 1, spacing: 1, followPath: false, showPath: false }]
-                        : s.pathConfig?.pathAssignments || []
-                    } 
-                  } : s))}
-                  style={{ accentColor: T.accent }}
-                />
-                <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Path Layout</span>
-              </label>
-              
-              {stamp.pathConfig?.enabled && (
-                <div style={{ paddingLeft: 22, display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Selected stamp details and slot assignments */}
+        {selectedStamp && (
+          <div>
+            {/* Path Layout Configuration (only if enabled and canvas loaded) */}
+            {selectedStamp.pathConfig?.enabled && canvasSVG && (
+              <div style={{ marginBottom: 12, padding: "10px", background: T.bg, borderRadius: 4, border: `1px solid ${T.ghost}` }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.mid, marginBottom: 10 }}>Path Layout Settings</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {/* Path Assignments */}
-                  {(stamp.pathConfig?.pathAssignments || []).map((assignment, idx) => (
+                  {(selectedStamp.pathConfig?.pathAssignments || []).map((assignment, idx) => (
                     <div key={idx} style={{ padding: 8, background: "#fff", borderRadius: 4, border: `1px solid ${T.ghost}` }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: T.mid }}>Path {idx + 1}</span>
                         <button 
-                          onClick={() => setStamps(p => p.map(s => s.id === stamp.id ? {
+                          onClick={() => setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                             ...s,
                             pathConfig: {
                               ...s.pathConfig,
@@ -239,32 +261,25 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                         >✕</button>
                       </div>
                       
-                      
                       {/* Canvas Path Selection */}
-                      {canvasSVG ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontSize: 10, color: T.muted, width: 50 }}>path</span>
-                          <select 
-                            value={assignment.canvasPath || canvasSVG.paths[0]?.name} 
-                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
-                              ...s,
-                              pathConfig: {
-                                ...s.pathConfig,
-                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? { ...a, canvasPath: e.target.value } : a)
-                              }
-                            } : s))}
-                            style={{ ...inp, flex: 1, fontSize: 10, padding: "2px 6px" }}
-                          >
-                            {canvasSVG.paths.map(p => (
-                              <option key={p.name} value={p.name}>{p.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: 10, color: "#e67e22", padding: "6px 8px", background: "#fff3cd", borderRadius: 3 }}>
-                          ⚠ Import a canvas SVG first
-                        </div>
-                      )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, color: T.muted, width: 50 }}>path</span>
+                        <select 
+                          value={assignment.canvasPath || canvasSVG.paths[0]?.name} 
+                          onChange={e => setStamps(p => p.map(s => s.id === selectedStamp.id ? {
+                            ...s,
+                            pathConfig: {
+                              ...s.pathConfig,
+                              pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? { ...a, canvasPath: e.target.value } : a)
+                            }
+                          } : s))}
+                          style={{ ...inp, flex: 1, fontSize: 10, padding: "2px 6px" }}
+                        >
+                          {canvasSVG.paths.map(p => (
+                            <option key={p.name} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
                       
                       {/* Data Range */}
                       <div style={{ marginBottom: 6 }}>
@@ -278,7 +293,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                             placeholder="Start"
                             onChange={e => {
                               const val = parseInt(e.target.value) || 0
-                              setStamps(p => p.map(s => s.id === stamp.id ? {
+                              setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                                 ...s,
                                 pathConfig: {
                                   ...s.pathConfig,
@@ -300,7 +315,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                             placeholder="End"
                             onChange={e => {
                               const val = parseInt(e.target.value) || (csv?.length || 0)
-                              setStamps(p => p.map(s => s.id === stamp.id ? {
+                              setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                                 ...s,
                                 pathConfig: {
                                   ...s.pathConfig,
@@ -329,7 +344,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                             max="3" 
                             step="0.1" 
                             value={assignment.scale || 1} 
-                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                            onChange={e => setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                               ...s,
                               pathConfig: {
                                 ...s.pathConfig,
@@ -347,7 +362,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                             max="3" 
                             step="0.1" 
                             value={assignment.spacing || 1} 
-                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                            onChange={e => setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                               ...s,
                               pathConfig: {
                                 ...s.pathConfig,
@@ -365,7 +380,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                           <input 
                             type="checkbox" 
                             checked={!!assignment.followPath} 
-                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                            onChange={e => setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                               ...s,
                               pathConfig: {
                                 ...s.pathConfig,
@@ -381,7 +396,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                           <input 
                             type="checkbox" 
                             checked={!!assignment.showPath} 
-                            onChange={e => setStamps(p => p.map(s => s.id === stamp.id ? {
+                            onChange={e => setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                               ...s,
                               pathConfig: {
                                 ...s.pathConfig,
@@ -398,7 +413,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                   
                   {/* Add Path Button */}
                   <button
-                    onClick={() => setStamps(p => p.map(s => s.id === stamp.id ? {
+                    onClick={() => setStamps(p => p.map(s => s.id === selectedStamp.id ? {
                       ...s,
                       pathConfig: {
                         ...s.pathConfig,
@@ -421,14 +436,15 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                     + Add Path
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             
-            {stamp.slots.map(slot => (
-              <SlotAssign key={slot.id} stamp={stamp} slot={slot} dataMap={dataMap} setDM={setDM} setSlotProp={setSlotProp} columns={columns} csv={csv} colorMappings={colorMappings}/>
+            {/* Slot Assignments */}
+            {selectedStamp.slots.map(slot => (
+              <SlotAssign key={slot.id} stamp={selectedStamp} slot={slot} dataMap={dataMap} setDM={setDM} setSlotProp={setSlotProp} columns={columns} csv={csv} colorMappings={colorMappings}/>
             ))}
           </div>
-        ))}
+        )}
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#e8e6e2" }}>
@@ -450,20 +466,6 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                   style={{ width: 80, accentColor: T.accent }}
                 />
                 <span style={{ fontSize: 11, color: T.muted, minWidth: 35 }}>{layoutConfig.scale.toFixed(1)}×</span>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: T.mid }}>spacing</span>
-                <input 
-                  type="range" 
-                  min="0.5" 
-                  max="3" 
-                  step="0.1" 
-                  value={layoutConfig.spacing || 1} 
-                  onChange={e => setLayoutConfig(p => ({ ...p, spacing: parseFloat(e.target.value) }))}
-                  style={{ width: 80, accentColor: T.accent }}
-                />
-                <span style={{ fontSize: 11, color: T.muted, minWidth: 35 }}>{(layoutConfig.spacing || 1).toFixed(1)}×</span>
               </div>
               
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

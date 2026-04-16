@@ -6,8 +6,8 @@ import Lbl from "./Lbl.jsx"
 
 export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
   const [src,   setSrc] = useState("sample")
-  const [dvars, setDV]  = useState(PRESETS[0].vars.map((v, i) => ({ ...v, id: i })))
-  const [nRows, setNR]  = useState(PRESETS[0].numRows)
+  const [dvars, setDV]  = useState([])
+  const [nRows, setNR]  = useState(20)
   const [prev,  setPrev] = useState(null)
   const [pC,    setPC]   = useState([])
 
@@ -17,7 +17,7 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
     
     const mappings = {}
     dvars.forEach(v => {
-      if (v.type === "category" && v.name.trim()) {
+      if (v.type === "category" && v.has_color && v.name.trim()) {
         const opts = v.options.split(",").map(s => s.trim()).filter(Boolean)
         const cols = (v.colors || "").split(",").map(s => s.trim()).filter(Boolean)
         const colorMap = {}
@@ -38,9 +38,9 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
     // Build color mappings from dvars AND from actual data
     const mappings = {}
     
-    // First, get mappings from dvars (for generated data)
+    // First, get mappings from dvars (for generated data) - only if has_color is true
     dvars.forEach(v => {
-      if (v.type === "category" && v.name.trim()) {
+      if (v.type === "category" && v.has_color && v.name.trim()) {
         const opts = v.options.split(",").map(s => s.trim()).filter(Boolean)
         const cols = (v.colors || "").split(",").map(s => s.trim()).filter(Boolean)
         const colorMap = {}
@@ -214,13 +214,26 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
 
       {src === "sample" && (
         <>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-            {PRESETS.map(p => (
-              <button key={p.name} onClick={() => { setDV(p.vars.map((v, i) => ({ ...v, id: i + mkId() }))); setNR(p.numRows); setPrev(null) }}
-                style={{ padding: "5px 11px", borderRadius: 3, fontSize: 12, cursor: "pointer", background: T.p2, color: T.mid, border: `1px solid ${T.border}`, fontFamily: "'Courier Prime',monospace" }}>
-                {p.emoji} {p.name}
-              </button>
-            ))}
+          <div style={{ marginBottom: 14 }}>
+            <Lbl>demo dataset</Lbl>
+            <select 
+              value="" 
+              onChange={e => {
+                if (!e.target.value) return
+                const preset = PRESETS.find(p => p.name === e.target.value)
+                if (preset) {
+                  setDV(preset.vars.map((v, i) => ({ ...v, id: i + mkId() })))
+                  setNR(preset.numRows)
+                  setPrev(null)
+                }
+              }}
+              style={{ ...inp, width: "100%", fontSize: 12, fontFamily: "'Courier Prime',monospace" }}
+            >
+              <option value="">Select a demo dataset...</option>
+              {PRESETS.map(p => (
+                <option key={p.name} value={p.name}>{p.emoji} {p.name}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -235,7 +248,7 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
             
             return (
               <div key={v.id} style={{ marginBottom: 10, padding: "8px", background: T.p1, borderRadius: 4, border: `1px solid ${T.ghost}` }}>
-                <div style={{ display: "flex", gap: 6, marginBottom: v.type === "category" && opts.length > 0 ? 8 : 0, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: v.type === "category" && v.has_color && opts.length > 0 ? 8 : 0, alignItems: "center" }}>
                   <input value={v.name} onChange={e => upd(v.id, "name", e.target.value)} placeholder={`col ${i + 1}`} style={{ ...inp, width: 90, minWidth: 0 }}/>
                   <select value={v.type} onChange={e => upd(v.id, "type", e.target.value)} style={inp}>
                     <option value="number">num</option>
@@ -253,8 +266,8 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
                   <button onClick={() => setDV(p => p.filter(x => x.id !== v.id))} style={{ background: "none", border: "none", fontSize: 13, color: T.ghost, cursor: "pointer" }}>✕</button>
                 </div>
                 
-                {/* Category color pickers */}
-                {v.type === "category" && opts.length > 0 && (
+                {/* Category color pickers - only show if has_color is true */}
+                {v.type === "category" && v.has_color && opts.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingLeft: 4 }}>
                     {opts.map((opt, oi) => (
                       <div key={oi} style={{ display: "flex", alignItems: "center", gap: 4, background: "#fff", padding: "3px 6px", borderRadius: 3, border: `1px solid ${T.ghost}` }}>
