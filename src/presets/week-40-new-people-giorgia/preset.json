@@ -1,0 +1,106 @@
+{
+  "id": "week-40-new-people-giorgia",
+  "name": "Week 40: New People (Giorgia)",
+  "emoji": "👥",
+  "description": "Track new people met and reunions from Dear Data project",
+  "author": "Giorgia Lupi",
+  
+  "data": {
+    "source": "generated",
+    "numRows": 20,
+    "columns": [
+      {
+        "name": "type",
+        "type": "category",
+        "options": "new,reunion",
+        "colors": "#e09f3e,#c1440e"
+      },
+      {
+        "name": "gender",
+        "type": "category",
+        "options": "man,woman,nonbinary",
+        "has_color": true,
+        "colors": "#1d3557,#9e2a2b,#2d6a4f"
+      },
+      {
+        "name": "where_met",
+        "type": "category",
+        "options": "school,home,other",
+        "colors": "#457b9d,#606c38,#7209b7,#ef6c00,#888888"
+      },
+      {
+        "name": "introducer",
+        "type": "category",
+        "options": "them,me,friend",
+        "colors": "#c9972b,#9b2226,#2d6a4f,#888888"
+      },
+      {
+        "name": "supposed_to_know",
+        "type": "category",
+        "options": "yes,no",
+        "colors": "#9b2226,#2d6a4f,#888888"
+      },
+      {
+        "name": "spoke_more_than_intro",
+        "type": "category",
+        "options": "yes,no",
+        "colors": "#9b2226,#2d6a4f"
+      }
+    ]
+  },
+  
+  "stamps": [
+    {
+      "file": "stamps/40_New_People-Georgia.svg",
+      "name": "New People",
+      "pathConfig": {
+        "enabled": false,
+        "pathAssignments": []
+      }
+    }
+  ],
+  "canvas": null,
+  "assignments": {
+    "dd-type-swap": {
+      "swap": {
+        "col": "type"
+      }
+    },
+    "dd-introducer-swap": {
+      "swap": {
+        "col": "introducer"
+      }
+    },
+    "dd-where_met-swap": {
+      "swap": {
+        "col": "where_met"
+      }
+    },
+    "dd-gender-color": {
+      "color": {
+        "col": "gender"
+      }
+    },
+    "dd-spoke_more_than_intro-visible": {
+      "visible": {
+        "col": "spoke_more_than_intro",
+        "config": {
+          "showIf": "yes"
+        }
+      }
+    },
+    "dd-supposed_to_know-visible": {
+      "visible": {
+        "col": "supposed_to_know",
+        "config": {
+          "showIf": "yes"
+        }
+      }
+    }
+  },
+  
+  "layout": {
+    "type": "grid",
+    "cols": 5
+  }
+}

@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react"
 import Papa from "papaparse"
 import { T, inp, mkId } from "../theme.js"
-import { PRESETS, genData } from "../presets/index.js"
+import { PRESETS, genData, getPresets, loadCompletePreset, applyPresetToData } from "../presets/index.js"
+import { parseStamp } from "../utils/svg.js"
 import Lbl from "./Lbl.jsx"
 
-export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
+export default function DataPanel({ setCsv, setColumns, setColorMappings, setStamps, setDataMap, stamps, setCanvasSVG }) {
   const [src,   setSrc] = useState("sample")
   const [dvars, setDV]  = useState([])
   const [nRows, setNR]  = useState(20)
   const [prev,  setPrev] = useState(null)
   const [pC,    setPC]   = useState([])
+  const [availablePresets, setAvailablePresets] = useState([])
+  const [loadingPreset, setLoadingPreset] = useState(false)
+  const [presetToApply, setPresetToApply] = useState(null) // For "Apply Preset" to uploaded CSV
 
   // Rebuild color mappings whenever dvars or prev changes
   useEffect(() => {
@@ -86,6 +90,175 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
   const generateRandomColor = () => {
     const colors = ["#c1440e", "#1d3557", "#2d6a4f", "#c9972b", "#9b2226", "#457b9d", "#606c38", "#7209b7", "#ef6c00"]
     return colors[Math.floor(Math.random() * colors.length)]
+  }
+
+  // Load available presets on mount
+  useEffect(() => {
+    const presets = getPresets()
+    setAvailablePresets(presets)
+  }, [])
+
+  // Load complete preset (data + stamps + canvas + assignments)
+  const handleLoadPreset = async (presetId) => {
+    if (!presetId) return
+    setLoadingPreset(true)
+    try {
+      const preset = await loadCompletePreset(presetId)
+      
+      // Load data columns
+      if (!preset.data || !preset.data.columns) {
+        throw new Error('Preset data or columns are missing')
+      }
+      const varsWithIds = preset.data.columns.map((v, i) => ({ ...v, id: i + mkId() }))
+      setDV(varsWithIds)
+      setNR(preset.data.numRows)
+      setPrev(null)
+      
+      // Load stamps from preset
+      const loadedStamps = []
+      if (preset.stamps && preset.stamps.length > 0) {
+        for (const stampDef of preset.stamps) {
+          if (stampDef.svgText) {
+            const parsed = parseStamp(stampDef.svgText)
+            loadedStamps.push({
+              ...parsed,
+              id: mkId(),
+              name: stampDef.name,
+              svgText: stampDef.svgText,
+              pathConfig: stampDef.pathConfig || { enabled: false, pathAssignments: [] }
+            })
+          }
+        }
+        setStamps(loadedStamps)
+      } else {
+        setStamps([]) // Clear stamps if preset has none
+      }
+      
+      // Load canvas from preset
+      if (preset.canvas && preset.canvas.svgText) {
+        setCanvasSVG(preset.canvas)
+      } else {
+        setCanvasSVG(null) // Clear canvas if preset has none
+      }
+      
+      // Apply assignments from preset
+      // Since slot.id IS the layer ID from SVG, we can use assignments directly
+      if (preset.assignments && Object.keys(preset.assignments).length > 0) {
+        const mappedAssignments = {}
+        
+        // Build a lookup map: slot layer ID -> slot ID
+        const slotLayerIdToId = {}
+        for (const stamp of loadedStamps) {
+          for (const slot of stamp.slots) {
+            // slot.id is the layer ID from the SVG (e.g., "dd-type-swap")
+            slotLayerIdToId[slot.id] = slot.id
+          }
+        }
+        
+        // Map preset assignments to actual slot IDs
+        // Since slot.id IS the layer ID, we can use assignments directly
+        for (const [slotLayerId, encoders] of Object.entries(preset.assignments)) {
+          if (slotLayerIdToId[slotLayerId]) {
+            mappedAssignments[slotLayerId] = encoders
+          } else {
+            console.warn(`Preset assignment references unknown slot: ${slotLayerId}`)
+          }
+        }
+        
+        setDataMap(mappedAssignments)
+      } else {
+        setDataMap({}) // Clear assignments if preset has none
+      }
+      
+    } catch (err) {
+      console.error("Failed to load preset:", err)
+      alert(`Failed to load preset: ${err.message}`)
+    } finally {
+      setLoadingPreset(false)
+    }
+  }
+
+  // Apply preset to current uploaded CSV data
+  const handleApplyPreset = async (presetId) => {
+    if (!presetId || !prev || prev.length === 0) return
+    setLoadingPreset(true)
+    try {
+      const assets = await applyPresetToData(presetId, prev)
+      const preset = await getPresets().find(p => p.id === presetId)
+      
+      // Update column definitions to include color info from preset
+      if (preset && preset.data && preset.data.columns) {
+        setDV(currentDvars => currentDvars.map(dvar => {
+          // Find matching column in preset
+          const presetCol = preset.data.columns.find(pc => pc.name === dvar.name)
+          if (presetCol && presetCol.colors) {
+            // Merge color info from preset
+            return {
+              ...dvar,
+              has_color: presetCol.has_color === true,
+              colors: presetCol.colors
+            }
+          }
+          return dvar
+        }))
+      }
+      
+      // Load stamps from preset
+      const loadedStamps = []
+      if (assets.stamps && assets.stamps.length > 0) {
+        for (const stampDef of assets.stamps) {
+          if (stampDef.svgText) {
+            const parsed = parseStamp(stampDef.svgText)
+            loadedStamps.push({
+              ...parsed,
+              id: mkId(),
+              name: stampDef.name,
+              svgText: stampDef.svgText,
+              pathConfig: stampDef.pathConfig || { enabled: false, pathAssignments: [] }
+            })
+          }
+        }
+        setStamps(loadedStamps)
+      }
+      
+      // Load canvas from preset
+      if (assets.canvas && assets.canvas.svgText) {
+        setCanvasSVG(assets.canvas)
+      }
+      
+      // Apply assignments from preset
+      // Since slot.id IS the layer ID from SVG, we can use assignments directly
+      if (assets.assignments && Object.keys(assets.assignments).length > 0) {
+        const mappedAssignments = {}
+        
+        // Build a lookup to validate slots exist
+        const slotLayerIds = new Set()
+        for (const stamp of loadedStamps) {
+          for (const slot of stamp.slots) {
+            slotLayerIds.add(slot.id)
+          }
+        }
+        
+        // Map preset assignments to actual slot IDs
+        for (const [slotLayerId, encoders] of Object.entries(assets.assignments)) {
+          if (slotLayerIds.has(slotLayerId)) {
+            mappedAssignments[slotLayerId] = encoders
+          } else {
+            console.warn(`Preset assignment references unknown slot: ${slotLayerId}`)
+          }
+        }
+        
+        setDataMap(mappedAssignments)
+      }
+      
+      alert("✓ Preset applied successfully! Check the '② assign' tab.")
+    } catch (err) {
+      console.error("Failed to apply preset:", err)
+      alert(`Failed to apply preset: ${err.message}`)
+    } finally {
+      setLoadingPreset(false)
+      setPresetToApply(null)
+    }
   }
 
   const upd = (id, f, v) => setDV(p => p.map(x => x.id === id ? { ...x, [f]: v } : x))
@@ -220,18 +393,14 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
               value="" 
               onChange={e => {
                 if (!e.target.value) return
-                const preset = PRESETS.find(p => p.name === e.target.value)
-                if (preset) {
-                  setDV(preset.vars.map((v, i) => ({ ...v, id: i + mkId() })))
-                  setNR(preset.numRows)
-                  setPrev(null)
-                }
+                handleLoadPreset(e.target.value)
               }}
+              disabled={loadingPreset}
               style={{ ...inp, width: "100%", fontSize: 12, fontFamily: "'Courier Prime',monospace" }}
             >
-              <option value="">Select a demo dataset...</option>
-              {PRESETS.map(p => (
-                <option key={p.name} value={p.name}>{p.emoji} {p.name}</option>
+              <option value="">{loadingPreset ? "Loading..." : "Select a demo dataset..."}</option>
+              {availablePresets.map(p => (
+                <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
               ))}
             </select>
           </div>
@@ -240,7 +409,60 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
             <Lbl>rows</Lbl>
             <input type="number" min={1} max={30} value={nRows} onChange={e => setNR(Math.max(1, Math.min(30, +e.target.value)))} style={{ ...inp, width: 52, marginBottom: 0 }}/>
           </div>
+        </>
+      )}
 
+      {src === "upload" && (
+        <div>
+          <Lbl>csv file</Lbl>
+          <input type="file" accept=".csv" onChange={onUp} style={{ fontSize: 13, color: T.mid }}/>
+          
+          {/* Apply Preset to uploaded CSV */}
+          {prev && prev.length > 0 && (
+            <div style={{ marginTop: 20, marginBottom: 20, padding: "12px", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 4 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.navy, marginBottom: 8 }}>Apply Visualization Preset</div>
+              <div style={{ fontSize: 11, color: T.muted, marginBottom: 8 }}>
+                Use a preset's stamps and configuration with your uploaded data
+              </div>
+              <select 
+                value={presetToApply || ""} 
+                onChange={e => setPresetToApply(e.target.value || null)}
+                disabled={loadingPreset}
+                style={{ ...inp, width: "100%", fontSize: 12, marginBottom: 8 }}
+              >
+                <option value="">Select a preset...</option>
+                {availablePresets.map(p => (
+                  <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
+                ))}
+              </select>
+              {presetToApply && (
+                <button 
+                  onClick={() => handleApplyPreset(presetToApply)}
+                  disabled={loadingPreset}
+                  style={{ 
+                    width: "100%",
+                    padding: "6px 12px", 
+                    borderRadius: 4, 
+                    border: "none", 
+                    background: T.navy, 
+                    color: "#fff", 
+                    cursor: loadingPreset ? "wait" : "pointer", 
+                    fontFamily: "'Courier Prime',monospace", 
+                    fontSize: 11,
+                    opacity: loadingPreset ? 0.6 : 1
+                  }}
+                >
+                  {loadingPreset ? "Applying..." : "Apply Preset"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Column editor - show when data is loaded in either mode */}
+      {dvars.length > 0 && (
+        <>
           <Lbl>columns</Lbl>
           {dvars.map((v, i) => {
             const opts = v.type === "category" ? v.options.split(",").map(s => s.trim()).filter(Boolean) : []
@@ -291,47 +513,45 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
             )
           })}
 
-          <button
-            onClick={() => setDV(p => [...p, { id: mkId(), name: "", type: "number", min: 0, max: 10, options: "" }])}
-            style={{ width: "100%", padding: "5px 0", fontSize: 11, background: "transparent", color: T.mid, border: `1px dashed ${T.border}`, borderRadius: 3, cursor: "pointer", fontFamily: "'Courier Prime',monospace", marginBottom: 12 }}
-          >
-            + column
-          </button>
+          {/* Only show add column and generate buttons in sample mode */}
+          {src === "sample" && (
+            <>
+              <button
+                onClick={() => setDV(p => [...p, { id: mkId(), name: "", type: "number", min: 0, max: 10, options: "" }])}
+                style={{ width: "100%", padding: "5px 0", fontSize: 11, background: "transparent", color: T.mid, border: `1px dashed ${T.border}`, borderRadius: 3, cursor: "pointer", fontFamily: "'Courier Prime',monospace", marginBottom: 12 }}
+              >
+                + column
+              </button>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <button
-              onClick={() => push(genData(dvars, nRows))}
-              style={{ flex: 1, padding: "9px 0", borderRadius: 4, border: "none", background: T.accent, color: "#fff", cursor: "pointer", fontFamily: "'Caveat',cursive", fontSize: 16, fontWeight: 700 }}
-            >
-              generate ↺
-            </button>
-            <button
-              onClick={downloadBlankTemplate}
-              disabled={dvars.filter(v => v.name.trim()).length === 0}
-              style={{ 
-                padding: "9px 14px", 
-                borderRadius: 4, 
-                border: `1px solid ${T.ghost}`, 
-                background: "#fff", 
-                color: T.mid, 
-                cursor: dvars.filter(v => v.name.trim()).length === 0 ? "not-allowed" : "pointer", 
-                fontFamily: "'Courier Prime',monospace", 
-                fontSize: 11,
-                opacity: dvars.filter(v => v.name.trim()).length === 0 ? 0.5 : 1
-              }}
-              title="Download blank CSV template with these column names"
-            >
-              📄 blank
-            </button>
-          </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <button
+                  onClick={() => push(genData(dvars, nRows))}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 4, border: "none", background: T.accent, color: "#fff", cursor: "pointer", fontFamily: "'Caveat',cursive", fontSize: 16, fontWeight: 700 }}
+                >
+                  generate ↺
+                </button>
+                <button
+                  onClick={downloadBlankTemplate}
+                  disabled={dvars.filter(v => v.name.trim()).length === 0}
+                  style={{ 
+                    padding: "9px 14px", 
+                    borderRadius: 4, 
+                    border: `1px solid ${T.ghost}`, 
+                    background: "#fff", 
+                    color: T.mid, 
+                    cursor: dvars.filter(v => v.name.trim()).length === 0 ? "not-allowed" : "pointer", 
+                    fontFamily: "'Courier Prime',monospace", 
+                    fontSize: 11,
+                    opacity: dvars.filter(v => v.name.trim()).length === 0 ? 0.5 : 1
+                  }}
+                  title="Download blank CSV template with these column names"
+                >
+                  📄 blank
+                </button>
+              </div>
+            </>
+          )}
         </>
-      )}
-
-      {src === "upload" && (
-        <div>
-          <Lbl>csv file</Lbl>
-          <input type="file" accept=".csv" onChange={onUp} style={{ fontSize: 13, color: T.mid }}/>
-        </div>
       )}
 
       </div>
@@ -415,6 +635,48 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+            
+            {/* Download CSV button */}
+            <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  // Convert data to CSV
+                  const cols = Object.keys(prev[0] || {})
+                  const csvContent = [
+                    cols.join(","), // Header row
+                    ...prev.map(row => cols.map(col => {
+                      const val = row[col]
+                      // Escape values that contain commas or quotes
+                      if (typeof val === "string" && (val.includes(",") || val.includes('"'))) {
+                        return `"${val.replace(/"/g, '""')}"`
+                      }
+                      return val
+                    }).join(","))
+                  ].join("\n")
+                  
+                  // Download
+                  const blob = new Blob([csvContent], { type: "text/csv" })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement("a")
+                  a.href = url
+                  a.download = "data.csv"
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                style={{
+                  padding: "6px 14px",
+                  fontSize: 12,
+                  background: T.navy,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontFamily: "'Courier Prime',monospace"
+                }}
+              >
+                ⬇ Download CSV
+              </button>
             </div>
           </>
         ) : (

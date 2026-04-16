@@ -16,6 +16,7 @@ export default function App() {
   const [csv,      setCsv]      = useState(null)
   const [columns,  setColumns]  = useState([])
   const [colorMappings, setColorMappings] = useState({}) // { columnName: { value: color } }
+  const [canvasSVG, setCanvasSVG] = useState(null) // Canvas state for preset loading
 
   const tabs = TABS.map(t => ({ 
     ...t, 
@@ -39,8 +40,8 @@ export default function App() {
       </header>
 
       <main style={{ flex: 1, overflow: "hidden" }}>
-        <div style={{ height: "100%", overflowY: "auto", display: tab === "data" ? "block" : "none" }}><DataPanel setCsv={setCsv} setColumns={setColumns} setColorMappings={setColorMappings}/></div>
-        <div style={{ height: "100%", display: tab === "assign" ? "block" : "none" }}><VisualisePanel stamps={stamps} setStamps={setStamps} dataMap={dataMap} setDataMap={setDataMap} csv={csv} columns={columns} colorMappings={colorMappings}/></div>
+        <div style={{ height: "100%", overflowY: "auto", display: tab === "data" ? "block" : "none" }}><DataPanel setCsv={setCsv} setColumns={setColumns} setColorMappings={setColorMappings} setStamps={setStamps} setDataMap={setDataMap} stamps={stamps} setCanvasSVG={setCanvasSVG}/></div>
+        <div style={{ height: "100%", display: tab === "assign" ? "block" : "none" }}><VisualisePanel stamps={stamps} setStamps={setStamps} dataMap={dataMap} setDataMap={setDataMap} csv={csv} columns={columns} colorMappings={colorMappings} canvasSVG={canvasSVG} setCanvasSVG={setCanvasSVG}/></div>
       </main>
     </div>
   )

@@ -5,10 +5,9 @@ import { parseStamp } from "../utils/svg.js"
 import { isNumCol } from "../utils/color.js"
 import SlotAssign from "./SlotAssign.jsx"
 
-export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns, colorMappings }) {
+export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns, colorMappings, canvasSVG, setCanvasSVG }) {
   const [error, setError] = useState(null)
   const [drag, setDrag] = useState(false)
-  const [canvasSVG, setCanvasSVG] = useState(null) // Canvas SVG with paths
   const [selectedStampId, setSelectedStampId] = useState(null) // Currently selected stamp
   const [layoutConfig, setLayoutConfig] = useState({
     type: "grid",
