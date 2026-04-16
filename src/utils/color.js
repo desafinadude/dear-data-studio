@@ -24,9 +24,19 @@ export const norm = (v, lo, hi) => hi > lo ? Math.max(0, Math.min(1, (v - lo) / 
 
 export const lerpN = (a, b, t) => a + (b - a) * t
 
-export const isNumCol = (col, data) => !!(col && data?.length && typeof data[0][col] === "number")
+export const isNumCol = (col, data) => {
+  if (!col || !data?.length) return false
+  // Check if all non-null/undefined values in the column are numbers
+  const values = data.map(row => row[col]).filter(v => v !== null && v !== undefined && v !== "")
+  return values.length > 0 && values.every(v => typeof v === "number")
+}
 
-export const catColor = (val, col, data, pal) => {
+export const catColor = (val, col, data, pal, colorMappings = {}) => {
+  // Use predefined color mapping if available
+  if (colorMappings[col] && colorMappings[col][val]) {
+    return colorMappings[col][val]
+  }
+  // Fallback to palette
   const cats = [...new Set(data.map(r => r[col]))]
   return pal[cats.indexOf(val) % pal.length]
 }

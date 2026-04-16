@@ -10,7 +10,7 @@ export const PALETTE = ["#c1440e","#1d3557","#2d6a4f","#c9972b","#9b2226","#457b
 //   size-range:     dataMap["dd-size-range"]["size-range"] = {col}
 //   repeat-indexed: dataMap["dd-repeat-indexed"]["count"]  = {col, colorGrad, colorA, colorB, opacityFade, sizeGrad}
 
-export function renderInstance(stamp, dataMap, row, data) {
+export function renderInstance(stamp, dataMap, row, data, colorMappings = {}) {
   let extra = ""
   for (const slot of stamp.slots) {
 
@@ -63,7 +63,7 @@ export function renderInstance(stamp, dataMap, row, data) {
         const isN = typeof encVal === "number"
         const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
         const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-        if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette))
+        if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
         if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t2 * 0.94)
         if (enc.type === "rotation" && isN) xml = wrapRot(xml, t2 * 360, anchor.cx, anchor.cy)
       }
@@ -106,7 +106,7 @@ export function renderInstance(stamp, dataMap, row, data) {
             const isN = typeof encVal === "number"
             const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
             const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-            if (enc.type === "color") ix = applyColor(ix, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette))
+            if (enc.type === "color") ix = applyColor(ix, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
             if (enc.type === "opacity" && isN) ix = wrapOp(ix, 0.06 + t2 * 0.94)
             if (enc.type === "size" && isN) ix = wrapSc(ix, 0.15 + t2 * 1.85, item.geom.cx, item.geom.cy)
             if (enc.type === "rotation" && isN) ix = wrapRot(ix, t2 * 360, item.geom.cx, item.geom.cy)
@@ -127,7 +127,7 @@ export function renderInstance(stamp, dataMap, row, data) {
         const isN = typeof encVal === "number"
         const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
         const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-        if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette))
+        if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
         if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t2 * 0.94)
         if (enc.type === "rotation" && isN) {
           // For group rotation, we need a center point - use first item's center
@@ -135,6 +135,54 @@ export function renderInstance(stamp, dataMap, row, data) {
           if (centerItem) xml = wrapRot(xml, t2 * 360, centerItem.geom.cx, centerItem.geom.cy)
         }
       }
+      extra += xml
+      continue
+    }
+
+    if (slot.type === "swap") {
+      const cfg = (dataMap[slot.id] || {})["swap"] || {}
+      const col = cfg.col
+      if (!col || !slot.variants || slot.variants.length === 0) {
+        // No column assigned or no variants - show first variant as fallback
+        extra += slot.variants?.[0]?.xml || ""
+        continue
+      }
+      
+      const val = row[col]
+      if (val === undefined || val === null) {
+        extra += ""
+        continue
+      }
+      
+      // Find matching variant
+      // Convert value to string and normalize (lowercase, replace spaces with underscores)
+      const normalizedVal = String(val).toLowerCase().replace(/\s+/g, "_")
+      const variant = slot.variants.find(v => {
+        const normalizedVariant = v.value.toLowerCase().replace(/\s+/g, "_")
+        return normalizedVariant === normalizedVal
+      })
+      
+      let xml = variant ? variant.xml : ""
+      
+      // Apply additional encodings to the selected variant (color, opacity, etc.)
+      if (xml) {
+        const variantGeom = variant.geom
+        for (const enc of slot.encs) {
+          if (enc.type === "swap") continue
+          const encCfg = (dataMap[slot.id] || {})[enc.type] || {}
+          const encCol = encCfg.col
+          if (!encCol) continue
+          const encVal = row[encCol]
+          if (encVal === undefined || encVal === null) continue
+          const isN = typeof encVal === "number"
+          const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
+          const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
+          if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
+          if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t2 * 0.94)
+          if (enc.type === "rotation" && isN) xml = wrapRot(xml, t2 * 360, variantGeom.cx, variantGeom.cy)
+        }
+      }
+      
       extra += xml
       continue
     }
@@ -149,7 +197,7 @@ export function renderInstance(stamp, dataMap, row, data) {
       const t = isN ? norm(val, ...colRange(col, data)) : 0
       if (enc.type === "size"    && isN) xml = wrapSc(xml, 0.15 + t * 1.85, slot.geom.cx, slot.geom.cy)
       const palette = PALETTES[cfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-      if (enc.type === "color")         xml = applyColor(xml, isN ? lerp3(cfg.colorA || "#f4e4d7", cfg.colorB || "#e09f3e", cfg.colorC || "#9e2a2b", t) : catColor(val, col, data, palette))
+      if (enc.type === "color")         xml = applyColor(xml, isN ? lerp3(cfg.colorA || "#f4e4d7", cfg.colorB || "#e09f3e", cfg.colorC || "#9e2a2b", t) : catColor(val, col, data, palette, colorMappings))
       if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t * 0.94)
       if (enc.type === "rotation" && isN) xml = wrapRot(xml, t * 360, slot.geom.cx, slot.geom.cy)
       if (enc.type === "text")           xml = applyText(xml, val)
@@ -249,7 +297,7 @@ function isSlotActive(slot, dataMap) {
   return slot.encs.some(enc => (dataMap[slot.id] || {})[enc.type]?.col)
 }
 
-export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasSVG = null) {
+export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasSVG = null, colorMappings = {}) {
   if (!data?.length) return null
   const active = stamps.filter(s => s.slots.some(sl => isSlotActive(sl, dataMap)))
   if (!active.length) return null
@@ -309,27 +357,32 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
           
           if (slicedData.length === 0) continue
           
-          // Check if this assignment uses a canvas path
-          if (assignment.pathType === "canvas" && assignment.canvasPath) {
+          // All assignments use canvas paths
+          if (assignment.canvasPath) {
             const canvasPath = canvasSVG.paths.find(p => p.name === assignment.canvasPath)
             
             if (canvasPath) {
               try {
                 const spacing = assignment.spacing || 1.0
-                const adjustedCount = Math.max(1, Math.round(slicedData.length / spacing))
-                const points = getPathPoints(canvasPath.d, adjustedCount)
+                // Calculate total points needed along path considering spacing
+                // Higher spacing = stamps spread further apart = need more path length
+                const totalPointsNeeded = Math.ceil(slicedData.length * spacing)
+                const points = getPathPoints(canvasPath.d, totalPointsNeeded)
                 
                 const stampScale = assignment.scale || 1.0
                 const scaledCellW = (layoutConfig.cellW || 110) * stampScale
                 const sc = (scaledCellW / stamp.vbW).toFixed(4)
                 
-                const renderCount = Math.min(points.length, slicedData.length)
-                for (let ri = 0; ri < renderCount; ri++) {
-                  const point = points[ri]
+                // Distribute data items with spacing between them
+                for (let ri = 0; ri < slicedData.length; ri++) {
+                  const pointIndex = Math.floor(ri * spacing)
+                  if (pointIndex >= points.length) break
+                  
+                  const point = points[pointIndex]
                   const row = slicedData[ri]
                   const rotation = assignment.followPath ? point.angle : 0
                   const rotTransform = rotation ? `rotate(${rotation.toFixed(2)})` : ""
-                  rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
+                  rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data, colorMappings)}</g>`)
                 }
                 
                 // Show path if enabled
@@ -388,7 +441,7 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
               const row = slicedData[ri]
               const rotation = stampPath.followPath ? point.angle : 0
               const rotTransform = rotation ? `rotate(${rotation.toFixed(2)})` : ""
-              rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
+              rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data, colorMappings)}</g>`)
             }
           } catch (e) {
             console.error("Canvas path layout error:", e)
@@ -485,7 +538,7 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
             const sc = (stampScaledCellW / stamp.vbW).toFixed(4)
             const rotation = stampPath.followPath ? point.angle : 0
             const rotTransform = rotation ? `rotate(${rotation.toFixed(2)})` : ""
-            rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
+            rows.push(`<g transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)}) ${rotTransform} scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data, colorMappings)}</g>`)
           }
           
           // Debug: show path
@@ -500,9 +553,9 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
         }
       }
     } else {
-      // Grid layout - use per-stamp scale and spacing
-      const stampScale = stampPath.scale || 1.0
-      const spacing = stampPath.spacing || 1.0
+      // Grid layout - use per-stamp scale and spacing, or fall back to global layout config
+      const stampScale = stampPath.scale || layout.scale || 1.0
+      const spacing = stampPath.spacing || layout.spacing || 1.0
       const stampScaledCellW = layout.cellW * stampScale
       const stampCellH = Math.round(stampScaledCellW * (stamp.vbH / stamp.vbW))
       
@@ -516,7 +569,7 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
         const cx = layout.pad + col * (stampScaledCellW + adjustedColGap)
         const cy = y + rn * (stampCellH + adjustedRowGap)
         const sc = (stampScaledCellW / stamp.vbW).toFixed(4)
-        rows.push(`<g transform="translate(${cx},${cy}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data)}</g>`)
+        rows.push(`<g transform="translate(${cx},${cy}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${renderInstance(stamp, dataMap, row, data, colorMappings)}</g>`)
       })
       
       y += Math.ceil(slicedData.length / layout.cols) * (stampCellH + adjustedRowGap) + layout.secGap

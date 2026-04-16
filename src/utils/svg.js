@@ -126,7 +126,7 @@ export function parseStamp(svgText) {
     let propParts = []
     let foundProp = false
     for (const part of parts) {
-      if (!foundProp && ["color", "colour", "opacity", "visible", "rotation", "repeat", "size", "text"].includes(part)) {
+      if (!foundProp && ["color", "colour", "opacity", "visible", "rotation", "repeat", "size", "text", "swap"].includes(part)) {
         foundProp = true
         propParts.push(part)
       } else if (foundProp) {
@@ -137,6 +137,44 @@ export function parseStamp(svgText) {
     }
     
     const id = idParts.join("_")
+    
+    // Check for swap group: dd-{id}-swap with children dd-{id}-swap-{value}
+    if (propParts[0] === "swap") {
+      const additionalEncs = parseEncodings(propParts.slice(1))
+      
+      // Find swap variants: dd-{id}-swap-{value}
+      const swapEls = [...group.querySelectorAll(`[id^='dd-${id}-swap-']`)]
+        .filter(el => {
+          const elId = el.getAttribute("id") || ""
+          // Match pattern: dd-{id}-swap-{value} (not deeper nesting)
+          const pattern = new RegExp(`^dd-${id.replace(/_/g, '_')}-swap-([^-]+)$`)
+          return pattern.test(elId)
+        })
+      
+      if (swapEls.length > 0) {
+        const variants = swapEls.map(el => {
+          const elId = el.getAttribute("id") || ""
+          // Extract the value after "swap-"
+          const match = elId.match(new RegExp(`^dd-${id.replace(/_/g, '_')}-swap-(.+)$`))
+          const value = match ? match[1] : ""
+          return {
+            value,
+            xml: el.outerHTML,
+            geom: getGeom(el, vbW, vbH)
+          }
+        })
+        
+        slots.push({
+          id: groupId,
+          type: "swap",
+          variants,
+          encs: [{ type: "swap" }, ...additionalEncs],
+        })
+        processedEls.add(group)
+        group.remove()
+        continue
+      }
+    }
     
     // Check for repeat group: dd-{id}-repeat-{props}
     if (propParts[0] === "repeat") {
@@ -329,6 +367,36 @@ REPEATS (must be in a group):
       <path id="dd-tasks-repeat-1-color" ... />        ← item 1 has own color
       <path id="dd-tasks-repeat-2-opacity" ... />      ← item 2 has own opacity
       <path id="dd-tasks-repeat-3-color-rotation" ... /> ← item 3 has color + rotation
+    </g>
+
+SWAPS (must be in a group):
+  <g id="dd-{id}-swap-{prop1}-{prop2}-...">
+    <element id="dd-{id}-swap-{value1}" ... />
+    <element id="dd-{id}-swap-{value2}" ... />
+    <element id="dd-{id}-swap-{value3}" ... />
+    ...
+  </g>
+  
+  • Shows different elements based on a categorical variable value
+  • Value names should match data values (use underscores for spaces)
+  • Props on the group are applied to the selected element
+  
+  Examples:
+    <g id="dd-type-swap">                     ← basic swap
+      <circle id="dd-type-swap-new" ... />
+      <rect id="dd-type-swap-reunion" ... />
+    </g>
+    
+    <g id="dd-animal-swap-color">             ← swap + color
+      <path id="dd-animal-swap-cat" ... />
+      <path id="dd-animal-swap-dog" ... />
+      <path id="dd-animal-swap-bird" ... />
+    </g>
+    
+    <g id="dd-weather-swap-color-opacity">    ← swap + color + opacity
+      <g id="dd-weather-swap-sunny">...</g>
+      <g id="dd-weather-swap-rainy">...</g>
+      <g id="dd-weather-swap-cloudy">...</g>
     </g>
 
 Figma workflow: Rename layer → File → Export → SVG`

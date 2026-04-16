@@ -1,52 +1,45 @@
 export const PRESETS = [
   {
-    name: "week diary",
-    emoji: "📅",
-    numRows: 7,
+    name: "Week 40: New People (Giorgia)",
+    emoji: "👥",
+    numRows: 20,
     vars: [
-      { name: "day",       type: "category", options: "Mon,Tue,Wed,Thu,Fri,Sat,Sun" },
-      { name: "coffee",    type: "number",   min: 0, max: 6 },
-      { name: "meetings",  type: "number",   min: 0, max: 8 },
-      { name: "focus_hrs", type: "number",   min: 0, max: 8 },
-      { name: "mood",      type: "number",   min: 1, max: 4 },
-      { name: "rained",    type: "number",   min: 0, max: 1 },
+      { name: "type",               type: "category", options: "new,reunion", colors: "#e09f3e,#c1440e" },
+      { name: "gender",             type: "category", options: "man,woman,nonbinary", colors: "#1d3557,#9e2a2b,#2d6a4f" },
+      { name: "where_met",          type: "category", options: "school,home,other", colors: "#457b9d,#606c38,#7209b7,#ef6c00,#888888" },
+      { name: "introducer",         type: "category", options: "them,me,friend", colors: "#c9972b,#9b2226,#2d6a4f,#888888" },
+      { name: "supposed_to_know", type: "category", options: "yes,no", colors: "#9b2226,#2d6a4f,#888888" },
+      { name: "spoke_more_than_intro", type: "category", options: "yes,no", colors: "#9b2226,#2d6a4f" },
     ],
-  },
-  {
-    name: "monthly mood",
-    emoji: "🌙",
-    numRows: 4,
-    vars: [
-      { name: "week",       type: "category", options: "Wk 1,Wk 2,Wk 3,Wk 4" },
-      { name: "energy",     type: "number",   min: 1, max: 10 },
-      { name: "social",     type: "number",   min: 1, max: 10 },
-      { name: "creativity", type: "number",   min: 1, max: 10 },
-    ],
-  },
-  {
-    name: "reading log",
-    emoji: "📚",
-    numRows: 5,
-    vars: [
-      { name: "book",   type: "category", options: "Book A,Book B,Book C,Book D,Book E" },
-      { name: "pages",  type: "number",   min: 5,  max: 60 },
-      { name: "rating", type: "number",   min: 1,  max: 5 },
-      { name: "genre",  type: "category", options: "fiction,nonfiction,poetry" },
-    ],
-  },
-  {
-    name: "distractions",
-    emoji: "🔔",
-    numRows: 28,
-    vars: [
-      { name: "distraction_length",        type: "number", min: 1, max: 60 },
-      { name: "main_activity",             type: "category", options: "working,music,supper,playing,meeting" },
-      { name: "main_activity_subcategory", type: "category", options: "email,writing,kids," },
-      { name: "distraction",               type: "category", options: "kids,phone,whatsapp,door" },
-      { name: "distraction_subcategory",   type: "category", options: "andy,family,friend,spam" },
-    ],
-  },
+  }
+  // {
+  //   name: "distractions",
+  //   emoji: "🔔",
+  //   numRows: 28,
+  //   vars: [
+  //     { name: "distraction_length",        type: "number", min: 1, max: 60 },
+  //     { name: "main_activity",             type: "category", options: "working,music,supper,playing,meeting" },
+  //     { name: "main_activity_subcategory", type: "category", options: "email,writing,kids," },
+  //     { name: "distraction",               type: "category", options: "kids,phone,whatsapp,door" },
+  //     { name: "distraction_subcategory",   type: "category", options: "andy,family,friend,spam" },
+  //   ],
+  // },
 ]
+
+// Generate a pleasant random color palette
+function generateRandomColors(count) {
+  const palettes = [
+    ["#c1440e", "#1d3557", "#2d6a4f", "#c9972b", "#9b2226", "#457b9d", "#606c38", "#7209b7"],
+    ["#e09f3e", "#9e2a2b", "#457b9d", "#2d6a4f", "#c1440e", "#606c38", "#1d3557"],
+    ["#ef6c00", "#7209b7", "#2d6a4f", "#c9972b", "#9b2226", "#1d3557"],
+  ]
+  const palette = palettes[Math.floor(Math.random() * palettes.length)]
+  const colors = []
+  for (let i = 0; i < count; i++) {
+    colors.push(palette[i % palette.length])
+  }
+  return colors
+}
 
 export function genData(vars, n) {
   return Array.from({ length: n }, (_, ri) => {

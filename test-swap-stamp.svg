@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Base element that's always visible -->
+  <circle cx="50" cy="50" r="40" fill="#e8dfd0" stroke="#333" stroke-width="2"/>
+  
+  <!-- Swap group: shows different shapes based on 'type' variable -->
+  <g id="dd-type-swap">
+    <!-- If type = "new_person" or "new" - show a star -->
+    <g id="dd-type-swap-new_person">
+      <path d="M 50 20 L 55 40 L 75 40 L 58 52 L 65 70 L 50 58 L 35 70 L 42 52 L 25 40 L 45 40 Z" fill="#e09f3e"/>
+    </g>
+    
+    <!-- If type = "reunion" - show a heart -->
+    <g id="dd-type-swap-reunion">
+      <path d="M 50 65 C 50 65 30 50 30 38 C 30 28 38 25 44 30 C 46 32 48 34 50 37 C 52 34 54 32 56 30 C 62 25 70 28 70 38 C 70 50 50 65 50 65 Z" fill="#c1440e"/>
+    </g>
+  </g>
+  
+  <!-- Another swap example with color encoding -->
+  <g id="dd-gender-swap-color">
+    <!-- If gender = "man" - show square -->
+    <rect id="dd-gender-swap-man" x="10" y="10" width="15" height="15" fill="#1d3557"/>
+    
+    <!-- If gender = "woman" - show circle -->
+    <circle id="dd-gender-swap-woman" cx="17.5" cy="17.5" r="7.5" fill="#9e2a2b"/>
+    
+    <!-- If gender = "nonbinary" - show triangle -->
+    <path id="dd-gender-swap-nonbinary" d="M 17.5 10 L 25 25 L 10 25 Z" fill="#2d6a4f"/>
+  </g>
+</svg>

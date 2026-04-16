@@ -7,7 +7,6 @@ import VisualisePanel from "./components/VisualisePanel.jsx"
 const TABS = [
   { id: "data",   label: "① data" },
   { id: "assign", label: "② assign" },
-  { id: "vis",    label: "③ visualise" },
 ]
 
 export default function App() {
@@ -16,10 +15,11 @@ export default function App() {
   const [dataMap,  setDataMap]  = useState({})
   const [csv,      setCsv]      = useState(null)
   const [columns,  setColumns]  = useState([])
+  const [colorMappings, setColorMappings] = useState({}) // { columnName: { value: color } }
 
   const tabs = TABS.map(t => ({ 
     ...t, 
-    avail: t.id === "data" || (t.id === "assign" && csv) || (t.id === "vis" && csv && stamps.length > 0)
+    avail: t.id === "data" || (t.id === "assign" && csv)
   }))
   const goTab = id => { if (tabs.find(t => t.id === id)?.avail) setTab(id) }
 
@@ -39,9 +39,8 @@ export default function App() {
       </header>
 
       <main style={{ flex: 1, overflow: "hidden" }}>
-        {tab === "data"   && <div style={{ height: "100%", overflowY: "auto" }}><DataPanel setCsv={setCsv} setColumns={setColumns}/></div>}
-        {tab === "assign" && <div style={{ height: "100%" }}><VisualisePanel stamps={stamps} setStamps={setStamps} dataMap={dataMap} setDataMap={setDataMap} csv={csv} columns={columns}/></div>}
-        {tab === "vis"    && <div style={{ height: "100%" }}><VisualisePanel stamps={stamps} setStamps={setStamps} dataMap={dataMap} setDataMap={setDataMap} csv={csv} columns={columns}/></div>}
+        <div style={{ height: "100%", overflowY: "auto", display: tab === "data" ? "block" : "none" }}><DataPanel setCsv={setCsv} setColumns={setColumns} setColorMappings={setColorMappings}/></div>
+        <div style={{ height: "100%", display: tab === "assign" ? "block" : "none" }}><VisualisePanel stamps={stamps} setStamps={setStamps} dataMap={dataMap} setDataMap={setDataMap} csv={csv} columns={columns} colorMappings={colorMappings}/></div>
       </main>
     </div>
   )

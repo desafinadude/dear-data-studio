@@ -2,15 +2,17 @@ import { useMemo, useRef, useState } from "react"
 import { T, mkId, inp } from "../theme.js"
 import { buildOutputSVG, downloadSVG } from "../utils/renderer.js"
 import { parseStamp } from "../utils/svg.js"
+import { isNumCol } from "../utils/color.js"
 import SlotAssign from "./SlotAssign.jsx"
 
-export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns }) {
+export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns, colorMappings }) {
   const [error, setError] = useState(null)
   const [drag, setDrag] = useState(false)
   const [canvasSVG, setCanvasSVG] = useState(null) // Canvas SVG with paths
   const [layoutConfig, setLayoutConfig] = useState({
     type: "grid",
     scale: 1.0,
+    spacing: 1.0,
     cols: 5,
     cellW: 110,
     colGap: 16,
@@ -25,7 +27,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
   const setSlotProp = (stampId, slotId, field, val) =>
     setStamps(p => p.map(s => s.id !== stampId ? s : { ...s, slots: s.slots.map(sl => sl.id !== slotId ? sl : { ...sl, [field]: val }) }))
 
-  const svgOut = useMemo(() => buildOutputSVG(stamps, dataMap, csv, layoutConfig, canvasSVG), [stamps, dataMap, csv, layoutConfig, canvasSVG])
+  const svgOut = useMemo(() => buildOutputSVG(stamps, dataMap, csv, layoutConfig, canvasSVG, colorMappings), [stamps, dataMap, csv, layoutConfig, canvasSVG, colorMappings])
 
   const loadStamp = text => {
     setError(null)
@@ -209,7 +211,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                       ...s.pathConfig, 
                       enabled: e.target.checked,
                       pathAssignments: e.target.checked && (!s.pathConfig?.pathAssignments || s.pathConfig.pathAssignments.length === 0) 
-                        ? [{ pathType: canvasSVG ? "canvas" : "line", canvasPath: canvasSVG?.paths[0]?.name, indexStart: 0, indexEnd: csv?.length || 0, scale: 1, spacing: 1, followPath: false, showPath: false }]
+                        ? [{ canvasPath: canvasSVG?.paths[0]?.name, indexStart: 0, indexEnd: csv?.length || 0, scale: 1, spacing: 1, followPath: false, showPath: false }]
                         : s.pathConfig?.pathAssignments || []
                     } 
                   } : s))}
@@ -237,36 +239,9 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                         >✕</button>
                       </div>
                       
-                      {/* Path Type */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 10, color: T.muted, width: 50 }}>type</span>
-                        <select 
-                          value={assignment.pathType || (canvasSVG ? "canvas" : "line")} 
-                          onChange={e => {
-                            const newType = e.target.value
-                            setStamps(p => p.map(s => s.id === stamp.id ? {
-                              ...s,
-                              pathConfig: {
-                                ...s.pathConfig,
-                                pathAssignments: s.pathConfig.pathAssignments.map((a, i) => i === idx ? {
-                                  ...a,
-                                  pathType: newType,
-                                  canvasPath: newType === "canvas" && canvasSVG ? (a.canvasPath || canvasSVG.paths[0]?.name) : a.canvasPath
-                                } : a)
-                              }
-                            } : s))
-                          }}
-                          style={{ ...inp, flex: 1, fontSize: 10, padding: "2px 6px" }}
-                        >
-                          {canvasSVG && <option value="canvas">Canvas Path</option>}
-                          <option value="line">Lines (flow)</option>
-                          <option value="circle">Circle</option>
-                          <option value="spiral">Spiral</option>
-                        </select>
-                      </div>
                       
                       {/* Canvas Path Selection */}
-                      {assignment.pathType === "canvas" && canvasSVG && (
+                      {canvasSVG ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <span style={{ fontSize: 10, color: T.muted, width: 50 }}>path</span>
                           <select 
@@ -284,6 +259,10 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                               <option key={p.name} value={p.name}>{p.name}</option>
                             ))}
                           </select>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 10, color: "#e67e22", padding: "6px 8px", background: "#fff3cd", borderRadius: 3 }}>
+                          ⚠ Import a canvas SVG first
                         </div>
                       )}
                       
@@ -426,7 +405,6 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                         pathAssignments: [
                           ...(s.pathConfig.pathAssignments || []),
                           {
-                            pathType: canvasSVG ? "canvas" : "line",
                             canvasPath: canvasSVG?.paths[0]?.name,
                             indexStart: 0,
                             indexEnd: csv?.length || 0,
@@ -447,7 +425,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
             </div>
             
             {stamp.slots.map(slot => (
-              <SlotAssign key={slot.id} stamp={stamp} slot={slot} dataMap={dataMap} setDM={setDM} setSlotProp={setSlotProp} columns={columns} csv={csv}/>
+              <SlotAssign key={slot.id} stamp={stamp} slot={slot} dataMap={dataMap} setDM={setDM} setSlotProp={setSlotProp} columns={columns} csv={csv} colorMappings={colorMappings}/>
             ))}
           </div>
         ))}
@@ -457,32 +435,50 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
         <div style={{ padding: "10px 16px", borderBottom: `1px solid ${T.border}`, background: T.p1, display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
           <span style={{ fontSize: 13, color: T.muted }}>live preview</span>
           
-          {/* Layout controls */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: T.mid }}>scale</span>
-            <input 
-              type="range" 
-              min="0.3" 
-              max="2" 
-              step="0.1" 
-              value={layoutConfig.scale} 
-              onChange={e => setLayoutConfig(p => ({ ...p, scale: parseFloat(e.target.value) }))}
-              style={{ width: 80, accentColor: T.accent }}
-            />
-            <span style={{ fontSize: 11, color: T.muted, minWidth: 35 }}>{layoutConfig.scale.toFixed(1)}x</span>
-          </div>
-          
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: T.mid }}>cols</span>
-            <input 
-              type="number" 
-              min="1" 
-              max="20" 
-              value={layoutConfig.cols} 
-              onChange={e => setLayoutConfig(p => ({ ...p, cols: parseInt(e.target.value) || 5 }))}
-              style={{ ...inp, width: 50, fontSize: 11, padding: "2px 6px" }}
-            />
-          </div>
+          {/* Layout controls - hide if canvas is active and any stamp has path layout enabled */}
+          {(!canvasSVG || !stamps.some(s => s.pathConfig?.enabled)) ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: T.mid }}>scale</span>
+                <input 
+                  type="range" 
+                  min="0.3" 
+                  max="2" 
+                  step="0.1" 
+                  value={layoutConfig.scale} 
+                  onChange={e => setLayoutConfig(p => ({ ...p, scale: parseFloat(e.target.value) }))}
+                  style={{ width: 80, accentColor: T.accent }}
+                />
+                <span style={{ fontSize: 11, color: T.muted, minWidth: 35 }}>{layoutConfig.scale.toFixed(1)}×</span>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: T.mid }}>spacing</span>
+                <input 
+                  type="range" 
+                  min="0.5" 
+                  max="3" 
+                  step="0.1" 
+                  value={layoutConfig.spacing || 1} 
+                  onChange={e => setLayoutConfig(p => ({ ...p, spacing: parseFloat(e.target.value) }))}
+                  style={{ width: 80, accentColor: T.accent }}
+                />
+                <span style={{ fontSize: 11, color: T.muted, minWidth: 35 }}>{(layoutConfig.spacing || 1).toFixed(1)}×</span>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: T.mid }}>cols</span>
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="20" 
+                  value={layoutConfig.cols} 
+                  onChange={e => setLayoutConfig(p => ({ ...p, cols: parseInt(e.target.value) || 5 }))}
+                  style={{ ...inp, width: 50, fontSize: 11, padding: "2px 6px" }}
+                />
+              </div>
+            </>
+          ) : null}
           
           {svgOut && (
             <button onClick={() => downloadSVG(svgOut)} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 4, border: `1px solid ${T.navy}`, background: "transparent", color: T.navy, fontSize: 12, cursor: "pointer", fontFamily: "'Courier Prime',monospace" }}>
@@ -491,16 +487,17 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
           )}
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: 24, display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
-          {!svgOut
-            ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 60, gap: 12 }}>
-                <svg width={56} height={56} viewBox="0 0 56 56">
-                  <rect x={6} y={6} width={44} height={44} rx={4} fill="none" stroke={T.ghost} strokeWidth={1.5} strokeDasharray="4 4"/>
-                  <circle cx={28} cy={28} r={7} fill="none" stroke={T.ghost} strokeWidth={1}/>
-                </svg>
-                <div style={{ fontFamily: "'Caveat',cursive", fontSize: 18, color: T.ghost }}>assign a column to see output</div>
-              </div>
-            : <div style={{ background: "#fff", borderRadius: 2, boxShadow: "0 2px 24px rgba(0,0,0,0.10)", border: "1px solid #ddd", maxWidth: "100%", overflow: "auto" }} dangerouslySetInnerHTML={{ __html: svgOut }}/>
-          }
+          {!svgOut ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 60, gap: 12 }}>
+              <svg width={56} height={56} viewBox="0 0 56 56">
+                <rect x={6} y={6} width={44} height={44} rx={4} fill="none" stroke={T.ghost} strokeWidth={1.5} strokeDasharray="4 4"/>
+                <circle cx={28} cy={28} r={7} fill="none" stroke={T.ghost} strokeWidth={1}/>
+              </svg>
+              <div style={{ fontFamily: "'Caveat',cursive", fontSize: 18, color: T.ghost }}>assign a column to see output</div>
+            </div>
+          ) : (
+            <div style={{ background: "#fff", borderRadius: 2, boxShadow: "0 2px 24px rgba(0,0,0,0.10)", border: "1px solid #ddd", maxWidth: "100%", overflow: "auto" }} dangerouslySetInnerHTML={{ __html: svgOut }}/>
+          )}
         </div>
       </div>
     </div>

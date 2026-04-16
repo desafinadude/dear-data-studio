@@ -1,16 +1,14 @@
 import { T, inp } from "../theme.js"
 import { isNumCol } from "../utils/color.js"
-import { PALETTES, DEFAULT_PALETTE } from "../utils/palettes.js"
 import Lbl from "./Lbl.jsx"
-import ColorRange from "./ColorRange.jsx"
 
 const EL = {
   size: "size", "size-range": "size", color: "colour", opacity: "opacity",
   visible: "visible if", repeat: "repeat", "repeat-indexed": "repeat", count: "count",
-  rotation: "rotation", text: "text",
+  rotation: "rotation", text: "text", swap: "swap element",
 }
 
-export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, columns, csv }) {
+export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, columns, csv, colorMappings }) {
 
   if (slot.type === "size-range") {
     const cfg = (dataMap[slot.id] || {})["size-range"] || {}
@@ -78,28 +76,8 @@ export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, c
                     </select>
                   </div>
                   {enc.type === "color" && encCfg.col && (
-                    <div style={{ paddingLeft: 68, marginBottom: 4 }}>
-                      {isNumCol(encCfg.col, csv) ? (
-                        <ColorRange cfg={encCfg} onA={v => setDM(slot.id, enc.type, "colorA", v)} onB={v => setDM(slot.id, enc.type, "colorB", v)} onC={v => setDM(slot.id, enc.type, "colorC", v)}/>
-                      ) : (
-                        <div>
-                          <div style={{ fontSize: 10, color: T.muted, marginBottom: 4 }}>categorical — choose palette</div>
-                          <select 
-                            value={encCfg.palette || DEFAULT_PALETTE} 
-                            onChange={e => setDM(slot.id, enc.type, "palette", e.target.value)} 
-                            style={{ ...inp, fontSize: 10, marginBottom: 4, padding: "2px 6px" }}
-                          >
-                            {Object.entries(PALETTES).map(([key, pal]) => (
-                              <option key={key} value={key}>{pal.name}</option>
-                            ))}
-                          </select>
-                          <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                            {PALETTES[encCfg.palette || DEFAULT_PALETTE].colors.slice(0, 8).map((c, i) => (
-                              <div key={i} style={{ width: 12, height: 12, background: c, borderRadius: 2, border: `1px solid ${T.ghost}` }} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    <div style={{ paddingLeft: 68, marginBottom: 4, fontSize: 11, color: T.muted, fontStyle: "italic" }}>
+                      Using colors assigned in data page
                     </div>
                   )}
                 </div>
@@ -148,28 +126,8 @@ export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, c
                     </select>
                   </div>
                   {enc.type === "color" && encCfg.col && (
-                    <div style={{ paddingLeft: 68, marginBottom: 4 }}>
-                      {isNumCol(encCfg.col, csv) ? (
-                        <ColorRange cfg={encCfg} onA={v => setDM(slot.id, enc.type, "colorA", v)} onB={v => setDM(slot.id, enc.type, "colorB", v)} onC={v => setDM(slot.id, enc.type, "colorC", v)}/>
-                      ) : (
-                        <div>
-                          <div style={{ fontSize: 10, color: T.muted, marginBottom: 4 }}>categorical palette</div>
-                          <select 
-                            value={encCfg.palette || DEFAULT_PALETTE} 
-                            onChange={e => setDM(slot.id, enc.type, "palette", e.target.value)} 
-                            style={{ ...inp, fontSize: 10, marginBottom: 4, padding: "2px 6px" }}
-                          >
-                            {Object.entries(PALETTES).map(([key, pal]) => (
-                              <option key={key} value={key}>{pal.name}</option>
-                            ))}
-                          </select>
-                          <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                            {PALETTES[encCfg.palette || DEFAULT_PALETTE].colors.slice(0, 8).map((c, i) => (
-                              <div key={i} style={{ width: 12, height: 12, background: c, borderRadius: 2, border: `1px solid ${T.ghost}` }} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    <div style={{ paddingLeft: 68, marginBottom: 4, fontSize: 11, color: T.muted, fontStyle: "italic" }}>
+                      Using colors assigned in data page
                     </div>
                   )}
                 </div>
@@ -199,28 +157,8 @@ export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, c
                         </select>
                       </div>
                       {enc.type === "color" && encCfg.col && (
-                        <div style={{ paddingLeft: 58, marginBottom: 4 }}>
-                          {isNumCol(encCfg.col, csv) ? (
-                            <ColorRange cfg={encCfg} onA={v => setDM(item.itemId, enc.type, "colorA", v)} onB={v => setDM(item.itemId, enc.type, "colorB", v)} onC={v => setDM(item.itemId, enc.type, "colorC", v)}/>
-                          ) : (
-                            <div>
-                              <div style={{ fontSize: 9, color: T.muted, marginBottom: 3 }}>categorical palette</div>
-                              <select 
-                                value={encCfg.palette || DEFAULT_PALETTE} 
-                                onChange={e => setDM(item.itemId, enc.type, "palette", e.target.value)} 
-                                style={{ ...inp, fontSize: 9, marginBottom: 3, padding: "2px 4px" }}
-                              >
-                                {Object.entries(PALETTES).map(([key, pal]) => (
-                                  <option key={key} value={key}>{pal.name}</option>
-                                ))}
-                              </select>
-                              <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                                {PALETTES[encCfg.palette || DEFAULT_PALETTE].colors.slice(0, 6).map((c, i) => (
-                                  <div key={i} style={{ width: 10, height: 10, background: c, borderRadius: 1, border: `1px solid ${T.ghost}` }} />
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                        <div style={{ paddingLeft: 58, marginBottom: 4, fontSize: 10, color: T.muted, fontStyle: "italic" }}>
+                          Using colors assigned in data page
                         </div>
                       )}
                     </div>
@@ -234,15 +172,6 @@ export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, c
         <div style={{ borderTop: `1px dashed ${T.ghost}`, paddingTop: 10 }}>
           <Lbl>vary copies by index (first → last)</Lbl>
           <label style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8, cursor: "pointer" }}>
-            <input type="checkbox" checked={!!cfg.colorGrad} onChange={() => tog("colorGrad")} style={{ accentColor: T.accent, flexShrink: 0 }}/>
-            <span style={{ fontSize: 13, color: T.mid }}>colour gradient</span>
-          </label>
-          {cfg.colorGrad && (
-            <div style={{ paddingLeft: 24, marginBottom: 8 }}>
-              <ColorRange cfg={cfg} onA={v => setDM(slot.id, "count", "colorA", v)} onB={v => setDM(slot.id, "count", "colorB", v)} onC={v => setDM(slot.id, "count", "colorC", v)} label="first"/>
-            </div>
-          )}
-          <label style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8, cursor: "pointer" }}>
             <input type="checkbox" checked={!!cfg.opacityFade} onChange={() => tog("opacityFade")} style={{ accentColor: T.accent, flexShrink: 0 }}/>
             <span style={{ fontSize: 13, color: T.mid }}>opacity fade</span>
             <span style={{ fontSize: 12, color: T.muted }}>ghost → solid</span>
@@ -253,6 +182,57 @@ export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, c
             <span style={{ fontSize: 12, color: T.muted }}>small → large</span>
           </label>
         </div>
+      </div>
+    )
+  }
+
+  if (slot.type === "swap") {
+    const cfg = (dataMap[slot.id] || {})["swap"] || {}
+    const additionalEncs = slot.encs.filter(e => e.type !== "swap")
+    
+    return (
+      <div style={{ marginBottom: 10, padding: "11px 13px", background: T.p2, borderRadius: 5, border: `1px solid ${T.ghost}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10, flexWrap: "wrap" }}>
+          <code style={{ fontSize: 12, background: T.navy, color: "#f7f2e8", borderRadius: 3, padding: "3px 8px" }}>{slot.id}</code>
+          <span style={{ fontSize: 11, background: `${T.accent}18`, color: T.accent, borderRadius: 8, padding: "2px 8px", border: `1px solid ${T.accent}33` }}>swap element</span>
+          <span style={{ fontSize: 11, color: T.muted }}>
+            {slot.variants.length} variant{slot.variants.length !== 1 ? 's' : ''}: {slot.variants.map(v => v.value).join(", ")}
+          </span>
+        </div>
+        
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: additionalEncs.length > 0 ? 12 : 0 }}>
+          <span style={{ fontSize: 13, color: T.mid, flexShrink: 0, width: 60 }}>column</span>
+          <select value={cfg.col || ""} onChange={e => setDM(slot.id, "swap", "col", e.target.value)} style={{ ...inp, flex: 1, fontSize: 12 }}>
+            <option value="">— categorical column —</option>
+            {columns.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        
+        {/* Additional encodings (color, opacity, rotation applied to selected variant) */}
+        {additionalEncs.length > 0 && (
+          <div style={{ borderTop: `1px dashed ${T.ghost}`, paddingTop: 10 }}>
+            <Lbl>additional encodings (applied to selected variant)</Lbl>
+            {additionalEncs.map((enc, ei) => {
+              const encCfg = (dataMap[slot.id] || {})[enc.type] || {}
+              return (
+                <div key={ei} style={{ marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, color: T.mid, width: 60, flexShrink: 0, fontStyle: "italic" }}>{EL[enc.type] || enc.type}</span>
+                    <select value={encCfg.col || ""} onChange={e => setDM(slot.id, enc.type, "col", e.target.value)} style={{ ...inp, flex: 1, fontSize: 12 }}>
+                      <option value="">— column —</option>
+                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  {enc.type === "color" && encCfg.col && (
+                    <div style={{ paddingLeft: 68, marginBottom: 4, fontSize: 11, color: T.muted, fontStyle: "italic" }}>
+                      Using colors assigned in data page
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     )
   }
@@ -281,29 +261,11 @@ export default function SlotAssign({ stamp, slot, dataMap, setDM, setSlotProp, c
             </div>
             {enc.type === "color" && (
               <div style={{ paddingLeft: 68, marginBottom: 4 }}>
-                {cfg.col && isNumCol(cfg.col, csv) ? (
-                  <ColorRange cfg={cfg} onA={v => setDM(slot.id, enc.type, "colorA", v)} onB={v => setDM(slot.id, enc.type, "colorB", v)} onC={v => setDM(slot.id, enc.type, "colorC", v)}/>
-                ) : cfg.col ? (
-                  <div>
-                    <div style={{ fontSize: 11, color: T.muted, marginBottom: 6 }}>categorical — choose palette</div>
-                    <select 
-                      value={cfg.palette || DEFAULT_PALETTE} 
-                      onChange={e => setDM(slot.id, enc.type, "palette", e.target.value)} 
-                      style={{ ...inp, fontSize: 11, marginBottom: 6 }}
-                    >
-                      {Object.entries(PALETTES).map(([key, pal]) => (
-                        <option key={key} value={key}>{pal.name}</option>
-                      ))}
-                    </select>
-                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                      {PALETTES[cfg.palette || DEFAULT_PALETTE].colors.map((c, i) => (
-                        <div key={i} style={{ width: 16, height: 16, background: c, borderRadius: 2, border: `1px solid ${T.ghost}` }} />
-                      ))}
-                    </div>
+                {cfg.col ? (
+                  <div style={{ fontSize: 11, color: T.muted, fontStyle: "italic" }}>
+                    Using colors assigned in data page
                   </div>
-                ) : (
-                  <ColorRange cfg={cfg} onA={v => setDM(slot.id, enc.type, "colorA", v)} onB={v => setDM(slot.id, enc.type, "colorB", v)} onC={v => setDM(slot.id, enc.type, "colorC", v)}/>
-                )}
+                ) : null}
               </div>
             )}
             {enc.type === "visible" && cfg.col && (
