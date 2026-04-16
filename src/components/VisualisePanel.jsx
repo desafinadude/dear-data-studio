@@ -99,6 +99,18 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
         paths,
         svgText: text
       })
+      
+      // Auto-enable path layout for all stamps when canvas is loaded
+      setStamps(p => p.map(stamp => ({
+        ...stamp,
+        pathConfig: {
+          ...stamp.pathConfig,
+          enabled: true,
+          pathAssignments: stamp.pathConfig?.pathAssignments?.length > 0
+            ? stamp.pathConfig.pathAssignments
+            : [{ canvasPath: paths[0]?.name, indexStart: 0, indexEnd: csv?.length || 0, scale: 1, spacing: 1, followPath: false, showPath: false }]
+        }
+      })))
     } catch (e) {
       setError(e.message)
     }
@@ -167,30 +179,6 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
           <input ref={canvasRef} type="file" accept=".svg" onChange={onCanvasFile} style={{ display: "none" }}/>
         </div>
         
-        {/* Path Layout checkbox - only show if canvas is loaded */}
-        {canvasSVG && selectedStamp && (
-          <div style={{ marginBottom: 16, padding: "8px 10px", background: T.bg, borderRadius: 4, border: `1px solid ${T.ghost}` }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input 
-                type="checkbox" 
-                checked={!!selectedStamp.pathConfig?.enabled} 
-                onChange={e => setStamps(p => p.map(s => s.id === selectedStamp.id ? { 
-                  ...s, 
-                  pathConfig: { 
-                    ...s.pathConfig, 
-                    enabled: e.target.checked,
-                    pathAssignments: e.target.checked && (!s.pathConfig?.pathAssignments || s.pathConfig.pathAssignments.length === 0) 
-                      ? [{ canvasPath: canvasSVG?.paths[0]?.name, indexStart: 0, indexEnd: csv?.length || 0, scale: 1, spacing: 1, followPath: false, showPath: false }]
-                      : s.pathConfig?.pathAssignments || []
-                  } 
-                } : s))}
-                style={{ accentColor: T.accent }}
-              />
-              <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Path Layout</span>
-            </label>
-          </div>
-        )}
-        
         {/* Stamp selector dropdown - only show if there are stamps */}
         {stamps.length > 0 && (
           <div style={{ marginBottom: 14 }}>
@@ -239,8 +227,8 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
         {/* Selected stamp details and slot assignments */}
         {selectedStamp && (
           <div>
-            {/* Path Layout Configuration (only if enabled and canvas loaded) */}
-            {selectedStamp.pathConfig?.enabled && canvasSVG && (
+            {/* Path Layout Configuration (only if canvas loaded) */}
+            {canvasSVG && (
               <div style={{ marginBottom: 12, padding: "10px", background: T.bg, borderRadius: 4, border: `1px solid ${T.ghost}` }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: T.mid, marginBottom: 10 }}>Path Layout Settings</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
