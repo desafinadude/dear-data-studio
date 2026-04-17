@@ -286,7 +286,17 @@ Configure the visualization layout with the `layout` object:
 "layout": {
   "type": "grid",              // Layout type: "grid" or "flow"
   "cols": 5,                   // Number of columns in grid layout
-  "chartTitle": "My Chart"     // Default title shown in visualization
+  "chartTitle": "My Chart",    // Default title shown in visualization
+  "roughness": {               // Hand-drawn style settings (optional)
+    "enabled": true,           // Enable rough.js styling
+    "roughness": 1.5,          // Sketch roughness (0-5)
+    "bowing": 1,               // Line curve amount (0-10)
+    "strokeWidth": 1,          // Line thickness (0.5-5)
+    "fillStyle": "hachure",    // Fill pattern: hachure, solid, zigzag, cross-hatch, dots, dashed, zigzag-line
+    "fillWeight": 1,           // Fill line thickness (0.5-5)
+    "hachureAngle": -41,       // Fill line angle (-180 to 180)
+    "hachureGap": 4            // Fill line spacing (1-20)
+  }
 }
 ```
 
@@ -305,13 +315,38 @@ Configure the visualization layout with the `layout` object:
   - Users can edit this via the "Set Title" button in the UI
   - Default: `"Dear Data Portrait"`
 
-Example:
+- **`roughness`**: Hand-drawn style settings (optional)
+  - Uses [rough.js](https://roughjs.com/) to create sketchy, hand-drawn aesthetics
+  - Perfect for the Dear Data aesthetic!
+  - **`enabled`**: Enable/disable rough styling (boolean)
+  - **`roughness`**: Amount of sketch roughness (0-5, default: 1)
+  - **`bowing`**: How much lines curve (0-10, default: 1)
+  - **`strokeWidth`**: Line thickness (0.5-5, default: 1)
+  - **`fillStyle`**: Fill pattern - options:
+    - `"hachure"`: Parallel lines (default)
+    - `"solid"`: Solid fill
+    - `"zigzag"`: Zigzag pattern
+    - `"cross-hatch"`: Crossing lines
+    - `"dots"`: Dotted pattern
+    - `"dashed"`: Dashed lines
+    - `"zigzag-line"`: Zigzag outline
+  - **`fillWeight`**: Thickness of fill lines (0.5-5, default: 1)
+  - **`hachureAngle`**: Angle of fill lines (-180 to 180, default: -41)
+  - **`hachureGap`**: Spacing between fill lines (1-20, default: 4)
+
+Example with roughness:
 
 ```json
 "layout": {
   "type": "grid",
   "cols": 5,
-  "chartTitle": "Week 40: New People I Met"
+  "chartTitle": "Week 40: New People I Met",
+  "roughness": {
+    "enabled": true,
+    "roughness": 1.5,
+    "bowing": 1,
+    "fillStyle": "hachure"
+  }
 }
 ```
 

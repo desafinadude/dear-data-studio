@@ -185,13 +185,17 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings, setSta
         setDataMap({}) // Clear assignments if preset has none
       }
       
-      // Apply layout config from preset (including chartTitle)
+      // Apply layout config from preset (including chartTitle and roughness)
       if (preset.layout) {
         setLayoutConfig(prev => ({
           ...prev,
           type: preset.layout.type || prev.type,
           cols: preset.layout.cols || prev.cols,
-          chartTitle: preset.layout.chartTitle || prev.chartTitle
+          chartTitle: preset.layout.chartTitle || prev.chartTitle,
+          roughness: preset.layout.roughness ? {
+            ...prev.roughness,
+            ...preset.layout.roughness
+          } : prev.roughness
         }))
       }
       
@@ -291,13 +295,17 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings, setSta
         setDataMap(mappedAssignments)
       }
       
-      // Apply layout config from preset (including chartTitle)
+      // Apply layout config from preset (including chartTitle and roughness)
       if (assets.layout) {
         setLayoutConfig(prev => ({
           ...prev,
           type: assets.layout.type || prev.type,
           cols: assets.layout.cols || prev.cols,
-          chartTitle: assets.layout.chartTitle || prev.chartTitle
+          chartTitle: assets.layout.chartTitle || prev.chartTitle,
+          roughness: assets.layout.roughness ? {
+            ...prev.roughness,
+            ...assets.layout.roughness
+          } : prev.roughness
         }))
       }
       

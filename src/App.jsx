@@ -25,7 +25,17 @@ export default function App() {
     cellW: 110,
     colGap: 16,
     rowGap: 18,
-    chartTitle: "Dear Data Portrait"
+    chartTitle: "Dear Data Portrait",
+    roughness: {
+      enabled: false,
+      roughness: 1,
+      bowing: 1,
+      strokeWidth: 1,
+      fillStyle: "hachure",
+      fillWeight: 1,
+      hachureAngle: -41,
+      hachureGap: 4
+    }
   })
 
   const tabs = TABS.map(t => ({ 

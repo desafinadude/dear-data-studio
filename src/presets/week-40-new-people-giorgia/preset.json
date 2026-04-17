@@ -102,6 +102,16 @@
   "layout": {
     "type": "grid",
     "cols": 5,
-    "chartTitle": "Week 40: New People I Met"
+    "chartTitle": "Week 40: New People I Met",
+    "roughness": {
+      "enabled": false,
+      "roughness": 1.5,
+      "bowing": 1,
+      "strokeWidth": 1,
+      "fillStyle": "hachure",
+      "fillWeight": 1,
+      "hachureAngle": -41,
+      "hachureGap": 4
+    }
   }
 }

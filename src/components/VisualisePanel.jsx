@@ -3,6 +3,7 @@ import { T, mkId, inp } from "../theme.js"
 import { buildOutputSVG, downloadSVG } from "../utils/renderer.js"
 import { parseStamp } from "../utils/svg.js"
 import { isNumCol } from "../utils/color.js"
+import { applyRoughness } from "../utils/rough.js"
 import SlotAssign from "./SlotAssign.jsx"
 
 export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns, colorMappings, canvasSVG, setCanvasSVG, layoutConfig, setLayoutConfig }) {
@@ -10,6 +11,7 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
   const [drag, setDrag] = useState(false)
   const [selectedStampId, setSelectedStampId] = useState(null) // Currently selected stamp
   const [showTitleModal, setShowTitleModal] = useState(false)
+  const [showRoughnessModal, setShowRoughnessModal] = useState(false)
   const [tempTitle, setTempTitle] = useState(layoutConfig.chartTitle)
   const fileRef = useRef()
   const canvasRef = useRef()
@@ -28,7 +30,15 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
   const setSlotProp = (stampId, slotId, field, val) =>
     setStamps(p => p.map(s => s.id !== stampId ? s : { ...s, slots: s.slots.map(sl => sl.id !== slotId ? sl : { ...sl, [field]: val }) }))
 
-  const svgOut = useMemo(() => buildOutputSVG(stamps, dataMap, csv, layoutConfig, canvasSVG, colorMappings), [stamps, dataMap, csv, layoutConfig, canvasSVG, colorMappings])
+  const svgOut = useMemo(() => {
+    const baseSvg = buildOutputSVG(stamps, dataMap, csv, layoutConfig, canvasSVG, colorMappings)
+    if (!baseSvg) return null
+    
+    // Apply roughness if enabled
+    return layoutConfig.roughness?.enabled 
+      ? applyRoughness(baseSvg, layoutConfig.roughness)
+      : baseSvg
+  }, [stamps, dataMap, csv, layoutConfig, canvasSVG, colorMappings])
 
   const loadStamp = text => {
     setError(null)
@@ -472,6 +482,23 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
             Set Title
           </button>
           
+          <button 
+            onClick={() => setShowRoughnessModal(true)} 
+            style={{ 
+              padding: "5px 14px", 
+              borderRadius: 4, 
+              border: `1px solid ${layoutConfig.roughness?.enabled ? T.accent : T.border}`, 
+              background: layoutConfig.roughness?.enabled ? `${T.accent}18` : "white", 
+              color: layoutConfig.roughness?.enabled ? T.accent : T.mid, 
+              fontSize: 12, 
+              cursor: "pointer", 
+              fontFamily: "'Courier Prime',monospace",
+              fontWeight: layoutConfig.roughness?.enabled ? 600 : 400
+            }}
+          >
+            ✏️ Roughness
+          </button>
+          
           {svgOut && (
             <button onClick={() => downloadSVG(svgOut)} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 4, border: `1px solid ${T.navy}`, background: "transparent", color: T.navy, fontSize: 12, cursor: "pointer", fontFamily: "'Courier Prime',monospace" }}>
               ↓ download SVG
@@ -570,6 +597,242 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
                 }}
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Roughness Settings Modal */}
+      {showRoughnessModal && (
+        <div 
+          style={{ 
+            position: "fixed", 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            background: "rgba(0,0,0,0.5)", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center", 
+            zIndex: 1000 
+          }}
+          onClick={() => setShowRoughnessModal(false)}
+        >
+          <div 
+            style={{ 
+              background: "white", 
+              borderRadius: 8, 
+              padding: "24px", 
+              minWidth: "450px", 
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.2)" 
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 18, fontWeight: 600, color: T.mid, marginBottom: 8, fontFamily: "'Caveat',cursive" }}>
+              ✏️ Hand-Drawn Style Settings
+            </div>
+            <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>
+              Apply rough.js styling for a hand-drawn aesthetic
+            </div>
+            
+            {/* Enable/Disable */}
+            <div style={{ marginBottom: 20, padding: "12px", background: T.p1, borderRadius: 4 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input 
+                  type="checkbox" 
+                  checked={layoutConfig.roughness?.enabled || false}
+                  onChange={e => setLayoutConfig(p => ({ 
+                    ...p, 
+                    roughness: { ...p.roughness, enabled: e.target.checked }
+                  }))}
+                  style={{ width: 18, height: 18, accentColor: T.accent }}
+                />
+                <span style={{ fontSize: 14, fontWeight: 600, color: T.mid }}>
+                  Enable Hand-Drawn Style
+                </span>
+              </label>
+            </div>
+            
+            {layoutConfig.roughness?.enabled && (
+              <>
+                {/* Roughness */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Roughness</span>
+                    <span style={{ fontSize: 12, color: T.muted }}>{(layoutConfig.roughness?.roughness || 1).toFixed(1)}</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="5" 
+                    step="0.1" 
+                    value={layoutConfig.roughness?.roughness || 1}
+                    onChange={e => setLayoutConfig(p => ({ 
+                      ...p, 
+                      roughness: { ...p.roughness, roughness: parseFloat(e.target.value) }
+                    }))}
+                    style={{ width: "100%", accentColor: T.accent }}
+                  />
+                  <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
+                    Higher = more sketchy
+                  </div>
+                </div>
+                
+                {/* Bowing */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Bowing</span>
+                    <span style={{ fontSize: 12, color: T.muted }}>{(layoutConfig.roughness?.bowing || 1).toFixed(1)}</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="10" 
+                    step="0.1" 
+                    value={layoutConfig.roughness?.bowing || 1}
+                    onChange={e => setLayoutConfig(p => ({ 
+                      ...p, 
+                      roughness: { ...p.roughness, bowing: parseFloat(e.target.value) }
+                    }))}
+                    style={{ width: "100%", accentColor: T.accent }}
+                  />
+                  <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
+                    Controls curve of lines
+                  </div>
+                </div>
+                
+                {/* Fill Style */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, color: T.mid, fontWeight: 600, marginBottom: 6 }}>Fill Style</div>
+                  <select 
+                    value={layoutConfig.roughness?.fillStyle || 'hachure'}
+                    onChange={e => setLayoutConfig(p => ({ 
+                      ...p, 
+                      roughness: { ...p.roughness, fillStyle: e.target.value }
+                    }))}
+                    style={{ ...inp, width: "100%", fontSize: 12, padding: "6px 8px" }}
+                  >
+                    <option value="hachure">Hachure (lines)</option>
+                    <option value="solid">Solid</option>
+                    <option value="zigzag">Zigzag</option>
+                    <option value="cross-hatch">Cross-Hatch</option>
+                    <option value="dots">Dots</option>
+                    <option value="dashed">Dashed</option>
+                    <option value="zigzag-line">Zigzag Line</option>
+                  </select>
+                </div>
+                
+                {/* Hachure Angle */}
+                {(layoutConfig.roughness?.fillStyle === 'hachure' || layoutConfig.roughness?.fillStyle === 'cross-hatch') && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Hachure Angle</span>
+                      <span style={{ fontSize: 12, color: T.muted }}>{layoutConfig.roughness?.hachureAngle || -41}°</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="-180" 
+                      max="180" 
+                      step="5" 
+                      value={layoutConfig.roughness?.hachureAngle || -41}
+                      onChange={e => setLayoutConfig(p => ({ 
+                        ...p, 
+                        roughness: { ...p.roughness, hachureAngle: parseInt(e.target.value) }
+                      }))}
+                      style={{ width: "100%", accentColor: T.accent }}
+                    />
+                  </div>
+                )}
+                
+                {/* Hachure Gap */}
+                {(layoutConfig.roughness?.fillStyle === 'hachure' || layoutConfig.roughness?.fillStyle === 'cross-hatch') && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Hachure Gap</span>
+                      <span style={{ fontSize: 12, color: T.muted }}>{(layoutConfig.roughness?.hachureGap || 4).toFixed(1)}</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="20" 
+                      step="0.5" 
+                      value={layoutConfig.roughness?.hachureGap || 4}
+                      onChange={e => setLayoutConfig(p => ({ 
+                        ...p, 
+                        roughness: { ...p.roughness, hachureGap: parseFloat(e.target.value) }
+                      }))}
+                      style={{ width: "100%", accentColor: T.accent }}
+                    />
+                    <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
+                      Spacing between fill lines
+                    </div>
+                  </div>
+                )}
+                
+                {/* Stroke Width */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Stroke Width</span>
+                    <span style={{ fontSize: 12, color: T.muted }}>{(layoutConfig.roughness?.strokeWidth || 1).toFixed(1)}</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0.5" 
+                    max="5" 
+                    step="0.1" 
+                    value={layoutConfig.roughness?.strokeWidth || 1}
+                    onChange={e => setLayoutConfig(p => ({ 
+                      ...p, 
+                      roughness: { ...p.roughness, strokeWidth: parseFloat(e.target.value) }
+                    }))}
+                    style={{ width: "100%", accentColor: T.accent }}
+                  />
+                </div>
+                
+                {/* Fill Weight */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: T.mid, fontWeight: 600 }}>Fill Weight</span>
+                    <span style={{ fontSize: 12, color: T.muted }}>{(layoutConfig.roughness?.fillWeight || 1).toFixed(1)}</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0.5" 
+                    max="5" 
+                    step="0.1" 
+                    value={layoutConfig.roughness?.fillWeight || 1}
+                    onChange={e => setLayoutConfig(p => ({ 
+                      ...p, 
+                      roughness: { ...p.roughness, fillWeight: parseFloat(e.target.value) }
+                    }))}
+                    style={{ width: "100%", accentColor: T.accent }}
+                  />
+                  <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
+                    Thickness of fill lines
+                  </div>
+                </div>
+              </>
+            )}
+            
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.ghost}` }}>
+              <button 
+                onClick={() => setShowRoughnessModal(false)}
+                style={{ 
+                  padding: "8px 16px", 
+                  borderRadius: 4, 
+                  border: "none", 
+                  background: T.accent, 
+                  color: "white", 
+                  fontSize: 12, 
+                  cursor: "pointer",
+                  fontWeight: 600
+                }}
+              >
+                Done
               </button>
             </div>
           </div>
