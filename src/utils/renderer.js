@@ -1,6 +1,7 @@
 import { lerp, lerp3, lerpN, colRange, norm, catColor } from "./color.js"
 import { applyColor, applyText, wrapOp, wrapT, wrapSc, wrapRot, escXML } from "./svg.js"
 import { PALETTES, DEFAULT_PALETTE } from "./palettes.js"
+import { applyEncoder } from "../encoders/index.js"
 
 export const PALETTE = ["#c1440e","#1d3557","#2d6a4f","#c9972b","#9b2226","#457b9d","#606c38","#7209b7","#ef6c00","#1c1208"]
 
@@ -20,52 +21,26 @@ export function renderInstance(stamp, dataMap, row, data, colorMappings = {}) {
       const val = row[cfg.col]
       if (typeof val !== "number") { extra += slot.startXML; continue }
       
-      // Hide if value is 0 or negative
-      if (val <= 0) {
-        extra += ""
-        continue
+      // Build context for encoder
+      const context = {
+        data,
+        slot,
+        geom: slot.startGeom,
+        colorMappings
       }
       
-      // Normalize: 1 = min size, max value = max size
-      const [dataMin, dataMax] = colRange(cfg.col, data)
-      const effectiveMin = Math.max(1, dataMin) // Use 1 as minimum, or dataMin if it's > 1
-      const t = dataMax > effectiveMin ? Math.max(0, Math.min(1, (val - effectiveMin) / (dataMax - effectiveMin))) : 0.5
+      // Apply size-range encoder
+      let xml = applyEncoder(slot.startXML, "size-range", val, cfg, context)
       
-      const ratio = slot.startGeom.primarySize > 0
-        ? lerpN(1, slot.endGeom.primarySize / slot.startGeom.primarySize, t) : 1
-      
-      // Calculate anchor point from origin preset using size-min geometry
-      const origin = cfg.origin || "center"
-      const geom = slot.startGeom
-      const anchorMap = {
-        "top-left":     { cx: geom.x, cy: geom.y },
-        "top":          { cx: geom.x + geom.width / 2, cy: geom.y },
-        "top-right":    { cx: geom.x + geom.width, cy: geom.y },
-        "left":         { cx: geom.x, cy: geom.y + geom.height / 2 },
-        "center":       { cx: geom.x + geom.width / 2, cy: geom.y + geom.height / 2 },
-        "right":        { cx: geom.x + geom.width, cy: geom.y + geom.height / 2 },
-        "bottom-left":  { cx: geom.x, cy: geom.y + geom.height },
-        "bottom":       { cx: geom.x + geom.width / 2, cy: geom.y + geom.height },
-        "bottom-right": { cx: geom.x + geom.width, cy: geom.y + geom.height }
-      }
-      const anchor = anchorMap[origin] || anchorMap["center"]
-      
-      let xml = wrapSc(slot.startXML, ratio, anchor.cx, anchor.cy)
-      
-      // Apply additional encodings (color, opacity, etc.)
+      // Apply additional encodings (color, opacity, rotation, etc.)
       for (const enc of slot.encs) {
         if (enc.type === "size-range") continue
         const encCfg = (dataMap[slot.id] || {})[enc.type] || {}
-        const encCol = encCfg.col
-        if (!encCol) continue
-        const encVal = row[encCol]
+        if (!encCfg.col) continue
+        const encVal = row[encCfg.col]
         if (encVal === undefined || encVal === null) continue
-        const isN = typeof encVal === "number"
-        const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
-        const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-        if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
-        if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t2 * 0.94)
-        if (enc.type === "rotation" && isN) xml = wrapRot(xml, t2 * 360, anchor.cx, anchor.cy)
+        
+        xml = applyEncoder(xml, enc.type, encVal, encCfg, context)
       }
       extra += xml
       continue
@@ -97,19 +72,19 @@ export function renderInstance(stamp, dataMap, row, data, colorMappings = {}) {
         
         // Item-level encodings (dd-repeat-1-color, dd-repeat-2-opacity, etc.)
         if (item.encs && item.encs.length > 0) {
+          const itemContext = {
+            data,
+            geom: item.geom,
+            colorMappings
+          }
+          
           for (const enc of item.encs) {
             const encCfg = (dataMap[item.itemId] || {})[enc.type] || {}
-            const encCol = encCfg.col
-            if (!encCol) continue
-            const encVal = row[encCol]
+            if (!encCfg.col) continue
+            const encVal = row[encCfg.col]
             if (encVal === undefined || encVal === null) continue
-            const isN = typeof encVal === "number"
-            const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
-            const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-            if (enc.type === "color") ix = applyColor(ix, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
-            if (enc.type === "opacity" && isN) ix = wrapOp(ix, 0.06 + t2 * 0.94)
-            if (enc.type === "size" && isN) ix = wrapSc(ix, 0.15 + t2 * 1.85, item.geom.cx, item.geom.cy)
-            if (enc.type === "rotation" && isN) ix = wrapRot(ix, t2 * 360, item.geom.cx, item.geom.cy)
+            
+            ix = applyEncoder(ix, enc.type, encVal, encCfg, itemContext)
           }
         }
         
@@ -117,23 +92,20 @@ export function renderInstance(stamp, dataMap, row, data, colorMappings = {}) {
       })
       
       // Apply group-level encodings to the whole repeat set (color, opacity, etc.)
+      const groupContext = {
+        data,
+        geom: slot.items[0]?.geom, // Use first item's geometry for group operations
+        colorMappings
+      }
+      
       for (const enc of slot.encs) {
         if (enc.type === "repeat-indexed") continue
         const encCfg = (dataMap[slot.id] || {})[enc.type] || {}
-        const encCol = encCfg.col
-        if (!encCol) continue
-        const encVal = row[encCol]
+        if (!encCfg.col) continue
+        const encVal = row[encCfg.col]
         if (encVal === undefined || encVal === null) continue
-        const isN = typeof encVal === "number"
-        const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
-        const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-        if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
-        if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t2 * 0.94)
-        if (enc.type === "rotation" && isN) {
-          // For group rotation, we need a center point - use first item's center
-          const centerItem = slot.items[0]
-          if (centerItem) xml = wrapRot(xml, t2 * 360, centerItem.geom.cx, centerItem.geom.cy)
-        }
+        
+        xml = applyEncoder(xml, enc.type, encVal, encCfg, groupContext)
       }
       extra += xml
       continue
@@ -165,21 +137,21 @@ export function renderInstance(stamp, dataMap, row, data, colorMappings = {}) {
       let xml = variant ? variant.xml : ""
       
       // Apply additional encodings to the selected variant (color, opacity, etc.)
-      if (xml) {
-        const variantGeom = variant.geom
+      if (xml && variant) {
+        const variantContext = {
+          data,
+          geom: variant.geom,
+          colorMappings
+        }
+        
         for (const enc of slot.encs) {
           if (enc.type === "swap") continue
           const encCfg = (dataMap[slot.id] || {})[enc.type] || {}
-          const encCol = encCfg.col
-          if (!encCol) continue
-          const encVal = row[encCol]
+          if (!encCfg.col) continue
+          const encVal = row[encCfg.col]
           if (encVal === undefined || encVal === null) continue
-          const isN = typeof encVal === "number"
-          const t2 = isN ? norm(encVal, ...colRange(encCol, data)) : 0
-          const palette = PALETTES[encCfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-          if (enc.type === "color") xml = applyColor(xml, isN ? lerp3(encCfg.colorA || "#f4e4d7", encCfg.colorB || "#e09f3e", encCfg.colorC || "#9e2a2b", t2) : catColor(encVal, encCol, data, palette, colorMappings))
-          if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t2 * 0.94)
-          if (enc.type === "rotation" && isN) xml = wrapRot(xml, t2 * 360, variantGeom.cx, variantGeom.cy)
+          
+          xml = applyEncoder(xml, enc.type, encVal, encCfg, variantContext)
         }
       }
       
@@ -187,24 +159,25 @@ export function renderInstance(stamp, dataMap, row, data, colorMappings = {}) {
       continue
     }
 
+    // Default slot type
     let xml = slot.xml
+    const slotContext = {
+      data,
+      geom: slot.geom,
+      colorMappings
+    }
+    
     for (const enc of slot.encs) {
       const cfg = (dataMap[slot.id] || {})[enc.type] || {}
       const col = cfg.col
       if (!col) continue
-      const val = row[col]; if (val === undefined || val === null) continue
-      const isN = typeof val === "number"
-      const t = isN ? norm(val, ...colRange(col, data)) : 0
-      if (enc.type === "size"    && isN) xml = wrapSc(xml, 0.15 + t * 1.85, slot.geom.cx, slot.geom.cy)
-      const palette = PALETTES[cfg.palette || DEFAULT_PALETTE]?.colors || PALETTE
-      if (enc.type === "color")         xml = applyColor(xml, isN ? lerp3(cfg.colorA || "#f4e4d7", cfg.colorB || "#e09f3e", cfg.colorC || "#9e2a2b", t) : catColor(val, col, data, palette, colorMappings))
-      if (enc.type === "opacity" && isN) xml = wrapOp(xml, 0.06 + t * 0.94)
-      if (enc.type === "rotation" && isN) xml = wrapRot(xml, t * 360, slot.geom.cx, slot.geom.cy)
-      if (enc.type === "text")           xml = applyText(xml, val)
-      if (enc.type === "visible") {
-        const show = isN ? val > parseFloat(cfg.threshold || "0") : String(val) === String(cfg.matchVal || "")
-        if (!show) { xml = ""; break }
-      }
+      const val = row[col]
+      if (val === undefined || val === null) continue
+      
+      xml = applyEncoder(xml, enc.type, val, cfg, slotContext)
+      
+      // If visible encoder returns empty string, stop processing
+      if (xml === "") break
     }
     extra += xml
   }
