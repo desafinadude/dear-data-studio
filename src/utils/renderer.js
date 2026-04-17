@@ -302,6 +302,9 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
   const active = stamps.filter(s => s.slots.some(sl => isSlotActive(sl, dataMap)))
   if (!active.length) return null
   
+  // Get chart title once at the top
+  const chartTitle = layoutConfig.chartTitle || "Dear Data Portrait"
+  
   // If canvas SVG is provided, use canvas-based layout
   if (canvasSVG) {
     const rows = []
@@ -454,7 +457,7 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
     
     const W = canvasSVG.vbW
     const H = canvasSVG.vbH
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${canvasSVG.vbX} ${canvasSVG.vbY} ${W} ${H}" width="${W}" height="${H}"><title>Dear Data Portrait</title>\n${rows.join("\n")}\n</svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${canvasSVG.vbX} ${canvasSVG.vbY} ${W} ${H}" width="${W}" height="${H}"><title>${escXML(chartTitle)}</title>\n${rows.join("\n")}\n</svg>`
   }
   
   // Original grid/path layout code for when no canvas is provided
@@ -472,6 +475,10 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
   
   const rows = []; let y = layout.pad
   const scaledCellW = layout.cellW * layout.scale
+  
+  // Add chart title at the top
+  rows.push(`<text x="${layout.pad}" y="${y}" font-family="Georgia,serif" font-size="14" fill="#9b8b7a" letter-spacing="2" font-weight="600">${escXML(chartTitle.toUpperCase())}</text>`)
+  y += 24
   
   for (const stamp of active) {
     const cellH = Math.round(scaledCellW * (stamp.vbH / stamp.vbW))
@@ -492,9 +499,11 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
       continue
     }
     
-    rows.push(`<text x="${layout.pad}" y="${y}" font-family="Georgia,serif" font-size="11" fill="#9b8b7a" letter-spacing="2">${escXML(stamp.name.toUpperCase())}</text>`)
-    rows.push(`<line x1="${layout.pad}" y1="${y + 3}" x2="${layout.pad + layout.cols * (scaledCellW + layout.colGap) - layout.colGap}" y2="${y + 3}" stroke="#e8e5e0" stroke-width="1"/>`)
-    y += 16
+    // Only show stamp name if there are multiple stamps
+    if (active.length > 1) {
+      rows.push(`<text x="${layout.pad}" y="${y}" font-family="Georgia,serif" font-size="10" fill="#b5a89a" letter-spacing="1.5">${escXML(stamp.name.toUpperCase())}</text>`)
+      y += 14
+    }
     
     if (usePathLayout) {
       // Path-based layout
@@ -576,17 +585,9 @@ export function buildOutputSVG(stamps, dataMap, data, layoutConfig = {}, canvasS
     }
   }
   
-  rows.push(`<line x1="${layout.pad}" y1="${y}" x2="${layout.pad + layout.cols * (scaledCellW + layout.colGap) - layout.colGap}" y2="${y}" stroke="#e8e5e0" stroke-width="1"/>`)
-  y += 10; let lx = layout.pad
-  for (const stamp of active) {
-    const sc = (28 / stamp.vbW).toFixed(4)
-    rows.push(`<g transform="translate(${lx},${y}) scale(${sc}) translate(${-stamp.vbX},${-stamp.vbY})">${stamp.baseXML}</g>`)
-    rows.push(`<text x="${lx + 34}" y="${y + 16}" font-family="Georgia,serif" font-size="11" fill="#6b5040">= ${escXML(stamp.name)}</text>`)
-    lx += 170
-  }
-  y += 36
+  y += 10
   const W = layout.pad * 2 + layout.cols * (scaledCellW + layout.colGap) - layout.colGap
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${y}" width="${W}" height="${y}"><title>Dear Data Portrait</title><rect width="${W}" height="${y}" fill="#ffffff"/>\n${rows.join("\n")}\n</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${y}" width="${W}" height="${y}"><title>${escXML(chartTitle)}</title><rect width="${W}" height="${y}" fill="#ffffff"/>\n${rows.join("\n")}\n</svg>`
 }
 
 export function downloadSVG(s, f = "dear-data.svg") {

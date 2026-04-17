@@ -101,6 +101,7 @@
   
   "layout": {
     "type": "grid",
-    "cols": 5
+    "cols": 5,
+    "chartTitle": "Week 40: New People I Met"
   }
 }

@@ -102,7 +102,8 @@ This is the main configuration file:
   
   "layout": {
     "type": "grid",
-    "cols": 5
+    "cols": 5,
+    "chartTitle": "My Awesome Visualization"
   }
 }
 ```
@@ -265,7 +266,52 @@ Example:
     "text": {
       "col": "name"
     }
+  },
+  "dd-indicator-visible": {
+    "visible": {
+      "col": "show_indicator",
+      "config": {
+        "showIf": "yes"
+      }
+    }
   }
+}
+```
+
+## Layout Configuration
+
+Configure the visualization layout with the `layout` object:
+
+```json
+"layout": {
+  "type": "grid",              // Layout type: "grid" or "flow"
+  "cols": 5,                   // Number of columns in grid layout
+  "chartTitle": "My Chart"     // Default title shown in visualization
+}
+```
+
+### Layout Properties
+
+- **`type`**: Layout algorithm
+  - `"grid"`: Arrange stamps in a grid pattern
+  - `"flow"`: Flow layout (experimental)
+  
+- **`cols`**: Number of columns (for grid layout)
+  - Default: `5`
+  - Affects how stamps are arranged
+
+- **`chartTitle`**: Default chart title
+  - Shown at the top of the visualization
+  - Users can edit this via the "Set Title" button in the UI
+  - Default: `"Dear Data Portrait"`
+
+Example:
+
+```json
+"layout": {
+  "type": "grid",
+  "cols": 5,
+  "chartTitle": "Week 40: New People I Met"
 }
 ```
 

@@ -5,7 +5,7 @@ import { PRESETS, genData, getPresets, loadCompletePreset, applyPresetToData } f
 import { parseStamp } from "../utils/svg.js"
 import Lbl from "./Lbl.jsx"
 
-export default function DataPanel({ setCsv, setColumns, setColorMappings, setStamps, setDataMap, stamps, setCanvasSVG }) {
+export default function DataPanel({ setCsv, setColumns, setColorMappings, setStamps, setDataMap, stamps, setCanvasSVG, layoutConfig, setLayoutConfig }) {
   const [src,   setSrc] = useState("sample")
   const [dvars, setDV]  = useState([])
   const [nRows, setNR]  = useState(20)
@@ -159,7 +159,22 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings, setSta
         // Since slot.id IS the layer ID, we can use assignments directly
         for (const [slotLayerId, encoders] of Object.entries(preset.assignments)) {
           if (slotLayerIdToId[slotLayerId]) {
-            mappedAssignments[slotLayerId] = encoders
+            // Transform encoder configs for compatibility
+            const transformedEncoders = {}
+            for (const [encoderType, encoderConfig] of Object.entries(encoders)) {
+              // Clone the config
+              const config = { ...encoderConfig }
+              
+              // Transform visible encoder: config.showIf -> matchVal/threshold
+              if (encoderType === "visible" && config.config?.showIf !== undefined) {
+                config.matchVal = config.config.showIf
+                delete config.config
+              }
+              
+              transformedEncoders[encoderType] = config
+            }
+            
+            mappedAssignments[slotLayerId] = transformedEncoders
           } else {
             console.warn(`Preset assignment references unknown slot: ${slotLayerId}`)
           }
@@ -168,6 +183,16 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings, setSta
         setDataMap(mappedAssignments)
       } else {
         setDataMap({}) // Clear assignments if preset has none
+      }
+      
+      // Apply layout config from preset (including chartTitle)
+      if (preset.layout) {
+        setLayoutConfig(prev => ({
+          ...prev,
+          type: preset.layout.type || prev.type,
+          cols: preset.layout.cols || prev.cols,
+          chartTitle: preset.layout.chartTitle || prev.chartTitle
+        }))
       }
       
     } catch (err) {
@@ -242,13 +267,38 @@ export default function DataPanel({ setCsv, setColumns, setColorMappings, setSta
         // Map preset assignments to actual slot IDs
         for (const [slotLayerId, encoders] of Object.entries(assets.assignments)) {
           if (slotLayerIds.has(slotLayerId)) {
-            mappedAssignments[slotLayerId] = encoders
+            // Transform encoder configs for compatibility
+            const transformedEncoders = {}
+            for (const [encoderType, encoderConfig] of Object.entries(encoders)) {
+              // Clone the config
+              const config = { ...encoderConfig }
+              
+              // Transform visible encoder: config.showIf -> matchVal/threshold
+              if (encoderType === "visible" && config.config?.showIf !== undefined) {
+                config.matchVal = config.config.showIf
+                delete config.config
+              }
+              
+              transformedEncoders[encoderType] = config
+            }
+            
+            mappedAssignments[slotLayerId] = transformedEncoders
           } else {
             console.warn(`Preset assignment references unknown slot: ${slotLayerId}`)
           }
         }
         
         setDataMap(mappedAssignments)
+      }
+      
+      // Apply layout config from preset (including chartTitle)
+      if (assets.layout) {
+        setLayoutConfig(prev => ({
+          ...prev,
+          type: assets.layout.type || prev.type,
+          cols: assets.layout.cols || prev.cols,
+          chartTitle: assets.layout.chartTitle || prev.chartTitle
+        }))
       }
       
       alert("✓ Preset applied successfully! Check the '② assign' tab.")

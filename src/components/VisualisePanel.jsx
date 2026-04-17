@@ -5,19 +5,12 @@ import { parseStamp } from "../utils/svg.js"
 import { isNumCol } from "../utils/color.js"
 import SlotAssign from "./SlotAssign.jsx"
 
-export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns, colorMappings, canvasSVG, setCanvasSVG }) {
+export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap, csv, columns, colorMappings, canvasSVG, setCanvasSVG, layoutConfig, setLayoutConfig }) {
   const [error, setError] = useState(null)
   const [drag, setDrag] = useState(false)
   const [selectedStampId, setSelectedStampId] = useState(null) // Currently selected stamp
-  const [layoutConfig, setLayoutConfig] = useState({
-    type: "grid",
-    scale: 1.0,
-    spacing: 1.0,
-    cols: 5,
-    cellW: 110,
-    colGap: 16,
-    rowGap: 18
-  })
+  const [showTitleModal, setShowTitleModal] = useState(false)
+  const [tempTitle, setTempTitle] = useState(layoutConfig.chartTitle)
   const fileRef = useRef()
   const canvasRef = useRef()
   
@@ -469,6 +462,16 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
             </>
           ) : null}
           
+          <button 
+            onClick={() => {
+              setTempTitle(layoutConfig.chartTitle)
+              setShowTitleModal(true)
+            }} 
+            style={{ padding: "5px 14px", borderRadius: 4, border: `1px solid ${T.border}`, background: "white", color: T.mid, fontSize: 12, cursor: "pointer", fontFamily: "'Courier Prime',monospace" }}
+          >
+            Set Title
+          </button>
+          
           {svgOut && (
             <button onClick={() => downloadSVG(svgOut)} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 4, border: `1px solid ${T.navy}`, background: "transparent", color: T.navy, fontSize: 12, cursor: "pointer", fontFamily: "'Courier Prime',monospace" }}>
               ↓ download SVG
@@ -489,6 +492,89 @@ export default function VisualisePanel({ stamps, setStamps, dataMap, setDataMap,
           )}
         </div>
       </div>
+      
+      {/* Title Modal */}
+      {showTitleModal && (
+        <div 
+          style={{ 
+            position: "fixed", 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            background: "rgba(0,0,0,0.5)", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center", 
+            zIndex: 1000 
+          }}
+          onClick={() => setShowTitleModal(false)}
+        >
+          <div 
+            style={{ 
+              background: "white", 
+              borderRadius: 8, 
+              padding: "24px", 
+              minWidth: "400px", 
+              boxShadow: "0 4px 24px rgba(0,0,0,0.2)" 
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 18, fontWeight: 600, color: T.mid, marginBottom: 16, fontFamily: "'Caveat',cursive" }}>
+              Set Chart Title
+            </div>
+            <input 
+              type="text" 
+              value={tempTitle} 
+              onChange={e => setTempTitle(e.target.value)}
+              style={{ 
+                ...inp, 
+                width: "100%", 
+                fontSize: 14, 
+                padding: "8px 12px", 
+                marginBottom: 16,
+                fontFamily: "Georgia,serif"
+              }}
+              placeholder="Enter chart title"
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button 
+                onClick={() => setShowTitleModal(false)}
+                style={{ 
+                  padding: "8px 16px", 
+                  borderRadius: 4, 
+                  border: `1px solid ${T.border}`, 
+                  background: "white", 
+                  color: T.mid, 
+                  fontSize: 12, 
+                  cursor: "pointer" 
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  setLayoutConfig(p => ({ ...p, chartTitle: tempTitle }))
+                  setShowTitleModal(false)
+                }}
+                style={{ 
+                  padding: "8px 16px", 
+                  borderRadius: 4, 
+                  border: "none", 
+                  background: T.accent, 
+                  color: "white", 
+                  fontSize: 12, 
+                  cursor: "pointer",
+                  fontWeight: 600
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
